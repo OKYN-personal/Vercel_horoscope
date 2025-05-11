@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="input-form">
+    <h2>出生情報を入力してください</h2>
+    <form action="{{ url_for('main.calculate') }}" method="post">
+        <div class="form-group">
+            <label for="birth_date">生年月日:</label>
+            <input type="date" id="birth_date" name="birth_date" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="birth_time">出生時刻:</label>
+            <input type="time" id="birth_time" name="birth_time" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="birth_place">出生地:</label>
+            <input type="text" id="birth_place" name="birth_place" placeholder="例: 東京" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="transit_date">トランジット日時（任意）:</label>
+            <input type="date" id="transit_date" name="transit_date">
+            <input type="time" id="transit_time" name="transit_time">
+        </div>
+        
+        <button type="submit">計算開始</button>
+    </form>
+</div>
+{% endblock %} 
