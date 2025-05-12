@@ -1,9 +1,9 @@
 from flask import Flask
 
 def create_app():
-    app = Flask(__name__)
-    
-    from . import routes
-    app.register_blueprint(routes.bp)
-    
+    app = Flask(__name__, template_folder="templates")
+
+    from app.routes import bp
+    app.register_blueprint(bp)
+
     return app 

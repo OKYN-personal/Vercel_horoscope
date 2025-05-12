@@ -1,4 +1,9 @@
 Flask==3.0.2
-swisseph==2.10.03
+pyswisseph
 WeasyPrint==60.2
-python-dateutil==2.8.2 
+pydyf==0.10.0
+python-dateutil==2.8.2
+matplotlib==3.8.4
+pytz
+# 緯度経度からタイムゾーンIDを取得
+timezonefinder[numba] 

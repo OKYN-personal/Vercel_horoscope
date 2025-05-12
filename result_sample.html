@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ホロスコープ結果</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>ホロスコープ結果</h1>
+
+        <div class="result-section">
+            <h2>入力情報</h2>
+            <p>生年月日: {{ result.birth_date }} {{ result.birth_time }}</p>
+            <p>出生地: {{ result.birth_place }} (緯度: {{ '%.2f'|format(result.lat) }}, 経度: {{ '%.2f'|format(result.lon) }})</p>
+            <p>タイムゾーン: JST (UTC+9) / ハウスシステム: Placidus</p>
+        </div>
+
+        <div class="result-section">
+            <h2>天体の位置</h2>
+            <table class="positions-table">
+                <thead>
+                    <tr>
+                        <th>天体</th>
+                        <th>サイン</th>
+                        <th>度数</th>
+                        <th>ハウス</th>
+                        <th>記号</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if result.planet_positions %}
+                        {% for planet, position in result.planet_positions.items() %}
+                        <tr>
+                            <td>{{ point_names_jp.get(planet, planet) }}</td>
+                            <td>{{ position.split(' ')[0] }}</td>
+                            <td>{{ position.split(' ')[1] }}</td>
+                            <td>{{ result.point_houses.get(planet, '-') }}</td>
+                            <td>{{ point_symbols.get(planet, '?') }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                    {% if result.asc != 'N/A' %}
+                    <tr>
+                        <td>{{ point_names_jp.get('ASC', 'ASC') }}</td>
+                        <td>{{ result.asc.split(' ')[0] }}</td>
+                        <td>{{ result.asc.split(' ')[1] }}</td>
+                        <td>{{ result.point_houses.get('ASC', '-') }}</td>
+                        <td>{{ point_symbols.get('ASC', '?') }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if result.mc != 'N/A' %}
+                    <tr>
+                        <td>{{ point_names_jp.get('MC', 'MC') }}</td>
+                        <td>{{ result.mc.split(' ')[0] }}</td>
+                        <td>{{ result.mc.split(' ')[1] }}</td>
+                        <td>{{ result.point_houses.get('MC', '-') }}</td>
+                        <td>{{ point_symbols.get('MC', '?') }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="result-section">
+            <h2>ホロスコープチャート</h2>
+            <div class="chart-container">
+                <svg viewBox="0 0 200 200" class="horoscope-chart">
+                    <defs>
+                        <style>
+                            .planet-symbol {
+                                font-size: 10px;
+                                text-anchor: middle;
+                                dominant-baseline: middle;
+                                fill: #333;
+                            }
+                            .zodiac-circle {
+                                stroke: #ccc;
+                                stroke-width: 1;
+                                fill: none;
+                            }
+                            .sign-cusp {
+                                stroke: #ddd;
+                                stroke-width: 0.5;
+                            }
+                            .sign-symbol {
+                                font-size: 8px;
+                                text-anchor: middle;
+                                dominant-baseline: middle;
+                                fill: #666;
+                            }
+                            .house-cusp {
+                                stroke: #a0a0a0;
+                                stroke-width: 0.5;
+                            }
+                            .house-cusp.asc-mc-line {
+                                stroke-width: 1.0;
+                                stroke: #555;
+                            }
+                            .house-label {
+                                font-size: 8px;
+                                font-weight: bold;
+                                fill: #666;
+                                text-anchor: middle;
+                                dominant-baseline: middle;
+                            }
+                            .point-symbol {
+                                font-size: 10px;
+                                text-anchor: middle;
+                                dominant-baseline: middle;
+                                fill: #333;
+                            }
+                            .point-symbol.asc-mc {
+                                font-size: 11px;
+                                font-weight: bold;
+                            }
+                            .aspect-line {
+                                stroke-width: 0.6;
+                            }
+                            .aspect-Conjunction { stroke: #4CAF50; }
+                            .aspect-Opposition { stroke: #F44336; }
+                            .aspect-Trine { stroke: #2196F3; }
+                            .aspect-Square { stroke: #F44336; stroke-dasharray: 4, 2; }
+                            .aspect-Sextile { stroke: #2196F3; stroke-dasharray: 2, 2; }
+                            .sign-degree-label {
+                                font-size: 6px;
+                                fill: #999;
+                                text-anchor: middle;
+                                dominant-baseline: middle;
+                            }
+                            .point-degree-label {
+                                font-size: 6px;
+                                fill: #444;
+                                text-anchor: middle;
+                                /* dominant-baseline: hanging; */ /* 記号の少し下に表示 */
+                            }
+                        </style>
+                        <clipPath id="aspect-clip">
+                            <circle cx="100" cy="100" r="75" />
+                        </clipPath>
+                    </defs>
+
+                    <circle cx="100" cy="100" r="80" class="zodiac-circle" />
+
+                    {% set center_x, center_y = 100, 100 %}
+                    {% set sign_cusp_radius = 90 %}
+                    {% set sign_symbol_radius = 95 %}
+                    {% set sign_degree_radius = 88 %}
+                    {% set rotation = result.rotation_angle or 0.0 %}
+                    {% for i in range(12) %}
+                        {% set original_angle_deg = i * 30 %}
+                        {% set rotated_angle_deg = (original_angle_deg - rotation + 360) % 360 %}
+                        {% set math_angle_deg = 180 - rotated_angle_deg %}
+                        {% set angle_rad = math.radians(math_angle_deg) %}
+                        {# {% set x2 = center_x + sign_cusp_radius * math.cos(angle_rad) %} #}
+                        {# {% set y2 = center_y - sign_cusp_radius * math.sin(angle_rad) %} #}
+                        {# <line x1="{{ center_x }}" y1="{{ center_y }}" x2="{{ x2 }}" y2="{{ y2 }}" class="sign-cusp" /> #}
+
+                        {% set rotated_sign_center_angle_deg = (original_angle_deg + 15 - rotation + 360) % 360 %}
+                        {# Convert center angle (ASC=0=left) to SVG plotting angle (0=right, CCW) ★ 修正 #}
+                        {% set svg_plotting_angle = (rotated_sign_center_angle_deg + 180) % 360 %}
+                        {% set sign_angle_rad = math.radians(svg_plotting_angle) %}
+                        {% set sign_x = center_x + sign_symbol_radius * math.cos(sign_angle_rad) %}
+                        {% set sign_y = center_y - sign_symbol_radius * math.sin(sign_angle_rad) %}
+                        {% set sign_name = signs[i] %}
+                        {% set sign_symbol = zodiac_symbols.get(sign_name, '?') %}
+                        <text x="{{ sign_x }}" y="{{ sign_y }}" class="sign-symbol" title="{{ sign_name }}">{{ sign_symbol }}</text>
+
+                        {# {% set degree_x = center_x + sign_degree_radius * math.cos(angle_rad) %} #}
+                        {# {% set degree_y = center_y - sign_degree_radius * math.sin(angle_rad) %} #}
+                        {# <text x="{{ degree_x }}" y="{{ degree_y }}" class="sign-degree-label">{{ original_angle_deg }}°</text> #}
+                    {% endfor %}
+
+                    <!-- ハウスカスプ線とハウス番号 (回転適用) -->
+                    {% set house_cusp_radius = 80 %}
+                    {% set house_label_radius = 70 %} {# ラベル半径 (調整可) #}
+                    {% if result.rotated_house_cusps %}
+                        {% for i in range(1, 13) %}
+                            {% set cusp_angle_deg_i = result.rotated_house_cusps.get(i) %}
+                            {% set cusp_angle_deg_next = result.rotated_house_cusps.get((i % 12) + 1) %} {# 次のカスプ (12の次は1) #}
+
+                            {% if cusp_angle_deg_i is not none and cusp_angle_deg_next is not none %}
+                                {# ハウスカスプ線 (正しい角度変換を適用) #}
+                                {% set svg_plotting_angle_i = (cusp_angle_deg_i + 180) % 360 %} {# ★ 正しいSVG描画角度 #}
+                                {% set angle_rad_i = math.radians(svg_plotting_angle_i) %} {# ★ 正しい角度を使用 #}
+                                {% set x2 = center_x + house_cusp_radius * math.cos(angle_rad_i) %}
+                                {% set y2 = center_y - house_cusp_radius * math.sin(angle_rad_i) %}
+                                {% set cusp_class = 'house-cusp asc-mc-line' if i in [1, 10] else 'house-cusp' %}
+                                <line x1="{{ center_x }}" y1="{{ center_y }}" x2="{{ x2 }}" y2="{{ y2 }}" class="{{ cusp_class }}" />
+
+                                {# ハウス番号 (ハウス i と i+1 のカスプの中間角度に配置) #}
+                                {% set diff = (cusp_angle_deg_next - cusp_angle_deg_i + 360) % 360 %}
+                                {% set mid_angle_deg = (cusp_angle_deg_i + diff / 2.0) % 360 %} {# 中間角度を計算 (ASC=0度基準) #}
+                                {# 中間角度をSVG座標系での数学的角度 (0度=右, 反時計回り) に変換 #}
+                                {% set svg_plotting_angle = (mid_angle_deg + 180) % 360 %}
+                                {% set mid_angle_rad = math.radians(svg_plotting_angle) %}
+                                {# 半径を考慮して座標を計算 #}
+                                {% set label_x = center_x + house_label_radius * math.cos(mid_angle_rad) %}
+                                {% set label_y = center_y - house_label_radius * math.sin(mid_angle_rad) %} {# SVG Y軸は下向き #}
+                                <text x="{{ label_x }}" y="{{ label_y }}" class="house-label">{{ i }}</text>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    <g clip-path="url(#aspect-clip)">
+                        {% if result.aspects and result.point_coords %}
+                            {% for aspect in result.aspects %}
+                                {% set p1_coords = result.point_coords.get(aspect.p1) %}
+                                {% set p2_coords = result.point_coords.get(aspect.p2) %}
+                                {% if p1_coords and p2_coords %}
+                                    <line
+                                        x1="{{ p1_coords.x }}" y1="{{ p1_coords.y }}"
+                                        x2="{{ p2_coords.x }}" y2="{{ p2_coords.y }}"
+                                        class="aspect-line aspect-{{ aspect.type }}"
+                                        stroke="{{ aspect.color }}"
+                                        />
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </g>
+
+                    {% if result.point_coords and point_symbols %}
+                        {% for point, coords in result.point_coords.items() %}
+                            {% set symbol = point_symbols.get(point, '?') %}
+                            {% set point_class = 'point-symbol asc-mc' if point in ['ASC', 'MC'] else 'point-symbol' %}
+                            <text x="{{ coords.x }}" y="{{ coords.y }}" class="{{ point_class }}" title="{{ point_names_jp.get(point, point) }}">
+                                {{ symbol }}
+                            </text>
+                            {% set degree_text = '' %}
+                            {% if point == 'ASC' and result.asc != 'N/A' %}
+                                {% set degree_text = result.asc.split(' ')[1] %}
+                            {% elif point == 'MC' and result.mc != 'N/A' %}
+                                {% set degree_text = result.mc.split(' ')[1] %}
+                            {% elif result.planet_positions.get(point) %}
+                                {% set degree_text = result.planet_positions[point].split(' ')[1] %}
+                            {% endif %}
+                            {% if degree_text %}
+                                <text x="{{ coords.x }}" y="{{ coords.y + 8 }}" class="point-degree-label">
+                                    {{ degree_text }}
+                                </text>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </svg>
+            </div>
+        </div>
+
+        <!-- ネイタルアスペクト解説 -->
+        <div class="interpretation-section" id="natal-interpretations">
+            <h3>アスペクト解説（ネイタル）</h3>
+            {% if result.natal_interpretations %}
+                {% for interp in result.natal_interpretations %}
+                    <div class="interpretation-item aspect-{{ interp.type | lower }}"> <!-- クラス追加 -->
+                        <span class="interpretation-symbols">
+                            {{ interp.p1_symbol }} {{ interp.aspect_symbol }} {{ interp.p2_symbol }}
+                        </span>
+                        <span class="interpretation-text">{{ interp.interpretation }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>主要なネイタルアスペクト（解釈文生成ルールに基づく）は見つかりませんでした。</p>
+            {% endif %}
+        </div>
+
+        <!-- 総合的な読み解き（詳細） -->
+        <div class="interpretation-section" id="detailed-interpretations">
+            <h3>総合的な読み解き（詳細）</h3>
+            {% if result.interpretation_details %}
+                {% for point, detail in result.interpretation_details.items() %}
+                    <p><strong>{{ point }}:</strong> {{ detail }}</p>
+                {% endfor %}
+            {% else %}
+                <p>詳細な読み解き情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <!-- トランジット結果表示エリア -->
+        <div id="transit-results" class="section">
+            <h2>トランジット情報 ({{ result.transit_date }})</h2>
+
+            <!-- トランジット天体位置 -->
+            <div class="transit-positions">
+                <h3>トランジット天体位置</h3>
+                <ul>
+                    {% for point, position in result.transit_positions.items() %}
+                    <li>{{ point }}: {{ position }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- トランジットアスペクト解説 -->
+            <div class="interpretation-section" id="transit-interpretations">
+                <h3>アスペクト解説（トランジット - ネイタル）</h3>
+                {% if result.transit_interpretations %}
+                     {% for interp in result.transit_interpretations %}
+                         <div class="interpretation-item aspect-{{ interp.type | lower }}"> <!-- クラス追加 -->
+                             <span class="interpretation-symbols transit"> <!-- transitクラス追加 -->
+                                 {{ interp.t_point_symbol }} {{ interp.aspect_symbol }} {{ interp.n_point_symbol }}
+                             </span>
+                             <span class="interpretation-text">{{ interp.interpretation }}</span>
+                         </div>
+                     {% endfor %}
+                {% else %}
+                    <p>主要なトランジットアスペクトは見つかりませんでした。</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>アスペクト</h2>
+            {% if result.aspects %}
+                <ul>
+                {% for aspect in result.aspects %}
+                    <li>
+                        {{ point_names_jp.get(aspect.p1, aspect.p1) }} {{ aspect.symbol }} {{ point_names_jp.get(aspect.p2, aspect.p2) }}
+                        ({{ aspect.type }}, オーブ: {{ '%.1f'|format(aspect.orb) }}° {{ aspect.status }})
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>主要なアスペクトは見つかりませんでした。</p>
+            {% endif %}
+        </div>
+
+        <!-- アスペクトグリッド -->
+        <div class="result-section">
+            <h2>アスペクトグリッド</h2>
+            {% if result.aspect_grid and result.grid_points_order %}
+                <table class="aspect-grid-table">
+                    <thead>
+                        <tr>
+                            <th></th> {# 左上の空セル #}
+                            {% for p2 in result.grid_points_order %}
+                                <th>{{ point_names_jp.get(p2, p2[0]) }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p1 in result.grid_points_order %}
+                            <tr>
+                                <th>{{ point_names_jp.get(p1, p1[0]) }}</th> {# 行ラベル日本語化 #}
+                                {% for p2 in result.grid_points_order %}
+                                    {% set idx1 = result.grid_points_order.index(p1) %}
+                                    {% set idx2 = result.grid_points_order.index(p2) %}
+                                    {% if idx1 <= idx2 %}
+                                        {# グリッドセルデータを取得 (None の可能性あり) #}
+                                        {% set grid_cell = result.aspect_grid.get(p1, {}).get(p2) %}
+                                        {# 記号を設定 (対角線は 'X', データがあれば記号、なければ空白) #}
+                                        {% set aspect_symbol = 'X' if idx1 == idx2 else (grid_cell.symbol if grid_cell else '') %}
+                                        {# CSS クラスを設定 (データがあればタイプから生成) #}
+                                        {% set aspect_class = ('aspect-' + grid_cell.type) if grid_cell else '' %}
+                                        <td class="{{ aspect_class }}">{{ aspect_symbol }}</td>
+                                    {% else %}
+                                        <td></td> {# 下半分は空 #}
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>アスペクトグリッドデータを生成できませんでした。</p>
+            {% endif %}
+        </div>
+
+        <div class="result-section">
+            <h2>読み解き</h2>
+            {% if result.planet_position_summaries %}
+                <ul>
+                {% for summary in result.planet_position_summaries %}
+                    <li>{{ summary }}</li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>天体の位置に基づく読み解き情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <!-- PDF Download Button/Form -->
+        <div class="download-pdf-section" style="margin-top: 2em; text-align: center;">
+             <form action="{{ url_for('download_pdf') }}" method="post" target="_blank">
+                 <!-- Hidden fields to pass input data -->
+                 <input type="hidden" name="birth_date" value="{{ result.birth_date }}">
+                 <input type="hidden" name="birth_time" value="{{ result.birth_time }}">
+                 <input type="hidden" name="birth_place" value="{{ result.birth_place }}">
+                 <input type="hidden" name="lat" value="{{ result.lat }}"> {# 座標も渡す #}
+                 <input type="hidden" name="lon" value="{{ result.lon }}"> {# 座標も渡す #}
+                 {# <input type="hidden" name="transit_date" value="{{ result.transit_date }}"> #} {# result.transit_date は YYYY-MM-DD HH:MM:SS 形式の場合がある #}
+                 {# ★ transit_date は YYYY-MM-DD 形式で渡す必要があるため、元のフォーム値をJSで取得するか、サーバー側で再パースする #}
+                 {#   今回は簡単のため、サーバー側で transit_date 文字列を再パースすることにする #}
+                 {#   ただし、result.transit_date が None の可能性も考慮する必要がある #}
+                 <input type="hidden" name="transit_date_str" value="{{ request.form.get('transit_date', '') }}">
+                 <input type="hidden" name="transit_time_str" value="{{ request.form.get('transit_time', '12:00') }}">
+
+
+                 <button type="submit" class="pdf-button">結果をPDFでダウンロード</button>
+             </form>
+        </div>
+
+        <div class="back-link" style="text-align: center; margin-top: 1em;">
+            <a href="{{ url_for('index') }}">入力画面に戻る</a>
+        </div>
+    </div>
+</body>
+</html> 
