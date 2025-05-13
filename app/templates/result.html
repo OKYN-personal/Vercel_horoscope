@@ -2,6 +2,62 @@
 
 {% block title %}ホロスコープ結果{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+    /* Simple Tab CSS */
+    .tabs {
+        margin-top: 20px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .tab-button {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin-bottom: -1px; /* Overlap border */
+        cursor: pointer;
+        border: 1px solid transparent;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        background-color: #f8f9fa;
+        color: #007bff;
+    }
+    .tab-button:hover {
+        background-color: #e9ecef;
+        border-color: #dee2e6 #dee2e6 transparent;
+    }
+    .tab-button.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        border-bottom: 1px solid #fff; /* Cover bottom border */
+    }
+    .tab-content {
+        display: none; /* Hide all content by default */
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-top: none; /* Remove top border */
+    }
+    .tab-content.active {
+        display: block; /* Show active content */
+    }
+    .interpretation-item, .sabian-interpretation, .aspect-interpretation-list li {
+        margin-bottom: 1.5em; /* Add some space between items */
+        padding-bottom: 1em;
+        border-bottom: 1px solid #eee; /* Add subtle separator */
+    }
+    .interpretation-item:last-child, .sabian-interpretation:last-child, .aspect-interpretation-list li:last-child {
+         border-bottom: none;
+    }
+    .interpretation h4 {
+        margin-bottom: 0.5em;
+    }
+    .interpretation-text {
+        margin-top: 0.3em;
+        line-height: 1.6;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container result-page">
     <h1>ホロスコープ結果</h1>
@@ -9,11 +65,12 @@
     <div class="result-section">
         <h2>入力情報</h2>
         <p>生年月日: {{ result.birth_date }} {{ result.birth_time }}</p>
-        <p>出生地: {{ result.birth_place }} 
-            (緯度: {{ '%.2f'|format(result.natal.latitude) if result.natal.latitude is not none else 'N/A' }}, 
+        <p>出生地: {{ result.birth_place }}
+            (緯度: {{ '%.2f'|format(result.natal.latitude) if result.natal.latitude is not none else 'N/A' }},
              経度: {{ '%.2f'|format(result.natal.longitude) if result.natal.longitude is not none else 'N/A' }})
         </p>
         <p>タイムゾーン: {{ result.natal.timezone | default('N/A') }} / ハウスシステム: {{ result.natal.house_system | default('N/A') }}</p>
+        {% if result.transit_date %}<p>トランジット日時: {{ result.transit_date }}</p>{% endif %}
     </div>
 
     <div class="result-section">
@@ -103,8 +160,18 @@
         {% endif %}
     </div>
     
-    <div class="result-section">
-        <h2>天体のサイン解説</h2>
+    <!-- Interpretation Tabs Start -->
+    <h2>解釈</h2>
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab(event, 'interpretation-natal')">ネイタル</button>
+        {% if result.transit %}
+        <button class="tab-button" onclick="openTab(event, 'interpretation-transit')">トランジット</button>
+        {% endif %}
+    </div>
+
+    <!-- Tab content -->
+    <div id="interpretation-natal" class="tab-content active">
+        <h3>天体のサイン解説</h3>
         <div class="interpretation">
             {% set interp_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] %}
             {% if result.interpretations and result.interpretations.planet_in_sign %}
@@ -112,7 +179,7 @@
                     {% if planet_key in result.interpretations.planet_in_sign %}
                         {% set interp_data = result.interpretations.planet_in_sign[planet_key] %}
                         {% set planet_glyph = result.natal.positions[planet_key].glyph | default('') %}
-                        <div class="interpretation-item" style="margin-bottom: 1em;">
+                        <div class="interpretation-item">
                             <h4><span class="glyph">{{ planet_glyph }}</span> {{ interp_data.key }} 解説</h4>
                             <p class="interpretation-text">{{ interp_data.text }}</p>
                         </div>
@@ -123,10 +190,8 @@
                  <p style="color: #aaa;">天体のサイン解釈情報がありません。</p>
             {% endif %}
         </div>
-    </div>
 
-    <div class="result-section">
-        <h2>天体のハウス解説</h2>
+        <h3>天体のハウス解説</h3>
         <div class="interpretation">
              {% set interp_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] %}
              {% if result.interpretations and result.interpretations.planet_in_house %}
@@ -134,7 +199,7 @@
                     {% if planet_key in result.interpretations.planet_in_house %}
                         {% set interp_data = result.interpretations.planet_in_house[planet_key] %}
                         {% set planet_glyph = result.natal.positions[planet_key].glyph | default('') %}
-                        <div class="interpretation-item" style="margin-bottom: 1em;">
+                        <div class="interpretation-item">
                             <h4><span class="glyph">{{ planet_glyph }}</span> {{ interp_data.key }} 解説</h4>
                             <p class="interpretation-text">{{ interp_data.text }}</p>
                         </div>
@@ -145,50 +210,114 @@
                  <p style="color: #aaa;">天体のハウス解釈情報がありません。</p>
             {% endif %}
         </div>
-    </div>
 
-    <div class="result-section">
-        <h2>総合的な読み解き (詳細) - サビアンシンボル</h2>
+        <h3>アスペクト解説</h3>
+        <div class="interpretation">
+             {% if result.interpretations and result.interpretations.aspects %}
+                 <ul class="aspect-interpretation-list" style="padding-left: 0; list-style: none;">
+                 {% for aspect_interp in result.interpretations.aspects %}
+                     <li> {# interpretation-item クラスを li に適用 #}
+                         <span class="glyph">{{ aspect_interp.planet1_glyph }}</span> {{ aspect_interp.aspect_glyph }} <span class="glyph">{{ aspect_interp.planet2_glyph }}</span>
+                         <strong>{{ aspect_interp.planet1_jp | default(aspect_interp.planet1) }} - {{ aspect_interp.planet2_jp | default(aspect_interp.planet2) }} {{ aspect_interp.aspect_type }}</strong>
+                         <p class="interpretation-text">{{ aspect_interp.text }}</p>
+                     </li>
+                 {% endfor %}
+                 </ul>
+             {% else %}
+                 <p style="color: #aaa;">ネイタルアスペクトの解釈情報がありません。</p>
+             {% endif %}
+        </div>
+
+         <h3>サビアンシンボル</h3>
         <div class="interpretation">
             {% if result.natal.sabian and result.natal.sabian is mapping and result.natal.sabian | length > 0 %}
                 {% for planet_key, sabian_data in result.natal.sabian.items() %}
                     {% set planet_data = result.natal.positions.get(planet_key) %}
                     {% if planet_data %}
-                        <div class="sabian-interpretation" style="margin-bottom: 1em;">
+                        <div class="sabian-interpretation interpretation-item"> {# interpretation-item クラスを追加 #}
                             <h4>
                                 <span class="glyph">{{ planet_data.glyph }}</span>
-                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }} {# 日本語名を使用 #}
+                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }}
                             </h4>
-                            <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p>
+                            {# interpretationはsymbolと同じなので、ここでは表示しないか、必要なら表示 #}
+                            {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
                         </div>
                     {% endif %}
                 {% endfor %}
             {% else %}
-                <p style="color: #aaa;">サビアンシンボルの解釈情報がありません。</p>
+                <p style="color: #aaa;">ネイタルサビアンシンボルの解釈情報がありません。</p>
             {% endif %}
         </div>
     </div>
 
-     <div class="result-section">
-        <h2>アスペクト解説 (ネイタル)</h2>
-        <div class="interpretation">
-             {# アスペクト解釈を表示 #}
-             {% if result.interpretations and result.interpretations.aspects %}
+    {# --- Transit Tab content (only if transit data exists) --- #}
+    {% if result.transit %}
+    <div id="interpretation-transit" class="tab-content">
+
+        <h3>トランジット天体</h3>
+        <table class="positions-table" style="margin-bottom: 2em;">
+             <thead>
+                <tr>
+                    <th>天体</th><th>サイン</th><th>度数</th><th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if result.transit.positions %}
+                    {% for planet_key, data in result.transit.positions.items() %}
+                    <tr>
+                        <td>{{ data.name_jp | default(planet_key) }}</td>
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                        <td><span class="glyph">{{ data.glyph }}</span></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                     <tr><td colspan="4">トランジット天体位置データがありません。</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <h3>アスペクト解説 (トランジット - ネイタル)</h3>
+         <div class="interpretation">
+            {# トランジットアスペクト解釈を表示 #}
+            {% if result.transit.aspect_interpretations and result.transit.aspect_interpretations | length > 0 %}
                  <ul class="aspect-interpretation-list" style="padding-left: 0; list-style: none;">
-                 {% for aspect_interp in result.interpretations.aspects %}
-                     <li style="margin-bottom: 1em;">
+                 {% for aspect_interp in result.transit.aspect_interpretations %}
+                     <li> {# interpretation-item クラスを li に適用 #}
                          <span class="glyph">{{ aspect_interp.planet1_glyph }}</span> {{ aspect_interp.aspect_glyph }} <span class="glyph">{{ aspect_interp.planet2_glyph }}</span>
-                         {# 日本語名を使用 #}
-                         <strong>{{ aspect_interp.planet1_jp | default(aspect_interp.planet1) }} - {{ aspect_interp.planet2_jp | default(aspect_interp.planet2) }} {{ aspect_interp.aspect_type }}</strong>
-                         <p class="interpretation-text" style="margin-top: 0.3em;">{{ aspect_interp.text }}</p>
+                         <strong>T.{{ aspect_interp.planet1_jp | default(aspect_interp.planet1) }} - N.{{ aspect_interp.planet2_jp | default(aspect_interp.planet2) }} {{ aspect_interp.aspect_type }}</strong>
+                         (オーブ: {{ aspect_interp.orb }}°)
+                         <p class="interpretation-text">{{ aspect_interp.text }}</p>
                      </li>
                  {% endfor %}
                  </ul>
-             {% else %}
-                 <p style="color: #aaa;">アスペクトの解釈情報がありません。</p>
-             {% endif %}
+            {% else %}
+                <p style="color: #aaa;">トランジットアスペクトの解釈情報がありません。</p>
+            {% endif %}
+         </div>
+
+        <h3>サビアンシンボル (トランジット)</h3>
+        <div class="interpretation">
+            {% if result.transit.sabian and result.transit.sabian is mapping and result.transit.sabian | length > 0 %}
+                {% for planet_key, sabian_data in result.transit.sabian.items() %}
+                    {% set planet_data = result.transit.positions.get(planet_key) %}
+                    {% if planet_data %}
+                        <div class="sabian-interpretation interpretation-item"> {# interpretation-item クラスを追加 #}
+                            <h4>
+                                <span class="glyph">{{ planet_data.glyph }}</span>
+                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }}
+                            </h4>
+                            {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p style="color: #aaa;">トランジットのサビアンシンボル解釈情報がありません。</p>
+            {% endif %}
         </div>
     </div>
+    {% endif %}
+    <!-- Interpretation Tabs End -->
 
     {% if result.transit %}
     <div class="result-section">
@@ -218,128 +347,49 @@
                 {% endif %}
             </tbody>
         </table>
-
-        <h3>アスペクト解説 (トランジット - ネイタル)</h3>
-         <div class="interpretation">
-            {% if result.transit.aspects %}
-                <ul class="aspect-list">
-                {% for aspect in result.transit.aspects %}
-                    <li>
-                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
-                        {# 日本語名を使用 #}
-                        ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }})
-                        オーブ: {{ aspect.orb }}°
-                    </li>
-                {% endfor %}
-                </ul>
-            {% else %}
-                <p>トランジットアスペクト情報がありません。</p>
-            {% endif %}
-         </div>
-         
-        <h3>サビアンシンボル (トランジット)</h3>
-        <div class="interpretation">
-            {% if result.transit.sabian and result.transit.sabian is mapping and result.transit.sabian | length > 0 %}
-                {% for planet_key, sabian_data in result.transit.sabian.items() %}
-                    {% set planet_data = result.transit.positions.get(planet_key) %}
-                    {% if planet_data %}
-                        <div class="sabian-interpretation" style="margin-bottom: 1em;">
-                            <h4>
-                                <span class="glyph">{{ planet_data.glyph }}</span>
-                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }} {# 日本語名を使用 #}
-                            </h4>
-                            <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <p style="color: #aaa;">トランジットのサビアンシンボル解釈情報がありません。</p>
-            {% endif %}
-        </div>
     </div>
     {% endif %}
 
-    <div class="download-pdf-section" style="margin-top: 2em; text-align: center;">
-        {# PDFダウンロードボタン -> result.pdf_url があれば有効化 #}
+    <div class="result-section pdf-download">
+        <h2>PDFダウンロード</h2>
         {% if result.pdf_url %}
-            <a href="{{ result.pdf_url }}" class="button" target="_blank">結果をPDFでダウンロード</a>
+            <a href="{{ result.pdf_url }}" download class="btn btn-primary">結果をPDFでダウンロード</a>
         {% else %}
-            <button type="button" onclick="alert('PDFダウンロードの準備ができていません。');" class="button" disabled>結果をPDFでダウンロード</button>
+            <p>PDFの生成に失敗しました。</p>
         {% endif %}
     </div>
 
-    <div class="back-link" style="text-align: center; margin-top: 1em;">
-        <a href="{{ url_for('main.index') }}">入力画面に戻る</a>
+    <div class="result-section back-link">
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">入力画面に戻る</a>
     </div>
 </div>
 
-<style>
-/* result_sample.html にあったスタイルを一部流用・調整 */
-.result-page h1 { margin-bottom: 1em; }
-.result-section {
-    background-color: #f9f9f9;
-    padding: 1.5em;
-    margin-bottom: 1.5em;
-    border-radius: 8px;
-    border: 1px solid #eee;
-}
-.result-section h2 {
-    color: #337ab7;
-    border-bottom: 2px solid #337ab7;
-    padding-bottom: 0.5em;
-    margin-top: 0;
-    margin-bottom: 1em;
-    font-size: 1.5em;
-}
-.result-section h3 {
-    color: #555;
-    margin-top: 1.5em;
-    margin-bottom: 0.8em;
-    font-size: 1.2em;
-}
-.positions-table th, .positions-table td,
-.aspect-grid-table th, .aspect-grid-table td {
-    padding: 0.5em;
-    border: 1px solid #ddd;
-    text-align: center;
-}
-.positions-table th, .aspect-grid-table th {
-    background-color: #f0f8ff;
-    font-weight: bold;
-}
-.positions-table td:nth-child(1), .positions-table td:nth-child(2) {
-    text-align: left;
-}
-.aspect-grid-table td {
-    min-width: 30px; /* グリッドのセル幅 */
-}
-.aspect-list { padding-left: 0; list-style: none; }
-.aspect-list li { margin-bottom: 0.5em; font-size: 0.9em; }
-.glyph { font-family: "Astrological Symbols", "Apple Symbols", "Arial Unicode MS", sans-serif; font-size: 1.2em; } /* フォールバックフォント追加 */
+<script>
+function openTab(evt, tabName) {
+    // Declare all variables
+    var i, tabcontent, tablinks;
 
-/* アスペクト記号の色 (例) */
-.aspect-conj { color: green; }
-.aspect-sext { color: blue; }
-.aspect-squa { color: red; }
-.aspect-trin { color: darkblue; }
-.aspect-oppo { color: darkred; }
+    // Get all elements with class="tab-content" and hide them
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
 
-/* SVG内のスタイル調整 (オプション) */
-.chart-container svg {
-    max-width: 100%;
-    height: auto;
+    // Get all elements with class="tab-button" and remove the class "active"
+    tablinks = document.getElementsByClassName("tab-button");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+
+    // Show the current tab, and add an "active" class to the button that opened the tab
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
 }
 
-/* 解釈文の改行を保持 */
-.interpretation-text {
-    white-space: pre-wrap; 
-}
-
-/* 解釈アイテムのスタイル調整 (任意) */
-.interpretation-item h4 {
-    color: #337ab7;
-    margin-bottom: 0.5em;
-}
-
-</style>
+// Optional: Activate the first tab by default if needed, or rely on the 'active' class in HTML
+// document.addEventListener('DOMContentLoaded', (event) => {
+//     // Click the first tab button automatically
+//     document.querySelector('.tab-button.active').click();
+// });
+</script>
 {% endblock %} 

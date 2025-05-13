@@ -4,7 +4,7 @@ from datetime import datetime
 # from .utils.aspects import calculate_aspects, get_aspect_description
 # from app import create_app # create_appは循環参照になる可能性があるので通常routesからは呼ばない
 from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid
-from app.sabian import get_sabian_symbol, get_interpretation
+from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
 from app.pdf_generator import generate_horoscope_pdf
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ハウスとアスペクトの解釈もインポート
@@ -49,11 +49,11 @@ def calculate():
             # ASC, MC はサビアンシンボルの対象外とする場合
             if planet in ['Asc', 'MC']: continue
             # sabian.py が longitude キーを期待しているか確認 -> OK
-            symbol = get_sabian_symbol(pos['longitude'])
-            if symbol:
+            sabian_text = get_sabian_symbol(pos['longitude']) # シンボル文を直接取得
+            if sabian_text: # sabian_text が None や空でないことを確認
                 natal_sabian[planet] = {
-                    'symbol': symbol,
-                    'interpretation': get_interpretation(symbol) #解釈も取得
+                    'symbol': sabian_text,      # シンボル文（例: 牡羊座1度: ...）
+                    'interpretation': sabian_text # 解釈文も同じシンボル文とする
                 }
 
         # 解釈文の取得
@@ -122,6 +122,8 @@ def calculate():
         transit_aspects = None # トランジットアスペクト用
         transit_sabian = None
         transit_date = None
+        transit_aspect_interpretations = [] # トランジットアスペクト解釈用
+
         if 'transitDate' in request.form and request.form['transitDate']:
             transit_date_str = request.form['transitDate']
             # datetime-local 形式 (%Y-%m-%dT%H:%M) を想定
@@ -131,14 +133,45 @@ def calculate():
             # トランジット-ネイタルアスペクトの計算
             transit_aspects = calculate_aspects(transit_positions, natal_positions)
 
+            # トランジットアスペクトの解釈を取得
+            if transit_aspects:
+                for aspect in transit_aspects:
+                    p1 = aspect.get('planet1') # Transit planet
+                    p2 = aspect.get('planet2') # Natal planet
+                    p1_jp = aspect.get('planet1_jp', p1)
+                    p2_jp = aspect.get('planet2_jp', p2)
+                    aspect_type = aspect.get('aspect_type')
+                    aspect_glyph = aspect.get('aspect_glyph')
+                    p1_glyph = aspect.get('planet1_glyph')
+                    p2_glyph = aspect.get('planet2_glyph')
+
+                    if p1 and p2 and aspect_type:
+                        # トランジットの場合、p1(T)とp2(N)の順序は固定でソートしないことが多いが、
+                        # ASPECT_INTERPRETATIONSのキー構造に合わせる必要がある。
+                        # 現状のASPECT_INTERPRETATIONSは英語名ソートなので、それに合わせる。
+                        # T.Sun-N.Moon と N.Moon-T.Sun のような区別をしたい場合はキー構造の変更が必要。
+                        planets_sorted_for_key = sorted([p1, p2]) # キー検索用にソート
+                        interp_key = f"{planets_sorted_for_key[0]}_{planets_sorted_for_key[1]}_{aspect_type}"
+                        interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"T.{p1_jp} {aspect_glyph} N.{p2_jp} の解釈は準備中です。")
+                        
+                        transit_aspect_interpretations.append({
+                            'planet1': p1, 'planet2': p2,
+                            'planet1_jp': p1_jp, 'planet2_jp': p2_jp,
+                            'aspect_type': aspect_type,
+                            'aspect_glyph': aspect_glyph,
+                            'planet1_glyph': p1_glyph, 'planet2_glyph': p2_glyph,
+                            'orb': aspect.get('orb'), # オーブも追加
+                            'text': interp_text
+                        })
+
             # トランジットのサビアンシンボル
             transit_sabian = {}
             for planet, pos in transit_positions.items():
-                 symbol = get_sabian_symbol(pos['longitude'])
-                 if symbol:
+                 sabian_text = get_sabian_symbol(pos['longitude']) # シンボル文を直接取得
+                 if sabian_text: # sabian_text が None や空でないことを確認
                      transit_sabian[planet] = {
-                         'symbol': symbol,
-                         'interpretation': get_interpretation(symbol)
+                         'symbol': sabian_text,      # シンボル文
+                         'interpretation': sabian_text # 解釈文も同じシンボル文
                      }
 
         # PDFの生成（結果データに含める前に生成）
@@ -160,7 +193,8 @@ def calculate():
         if transit_positions:
             pdf_result_data['transit'] = {
                 'positions': transit_positions,
-                'aspects': transit_aspects,
+                'aspects': transit_aspects, # 元のアスペクトリスト（オーブなど含む）
+                'aspect_interpretations': transit_aspect_interpretations, # 解釈付きリスト
                 'sabian': transit_sabian
             }
             pdf_result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
@@ -188,7 +222,8 @@ def calculate():
         if transit_positions:
             result_data['transit'] = {
                 'positions': transit_positions,
-                'aspects': transit_aspects,
+                'aspects': transit_aspects, # これはアスペクトグリッドやリスト表示に使える
+                'aspect_interpretations': transit_aspect_interpretations, # 解釈表示用
                 'sabian': transit_sabian
             }
             result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')

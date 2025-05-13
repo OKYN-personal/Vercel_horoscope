@@ -5,7 +5,7 @@
     <form id="horoscopeForm" method="POST" action="{{ url_for('main.calculate') }}">
         <div class="form-group">
             <label for="birthDate">生年月日:</label>
-            <input type="date" id="birthDate" name="birthDate" required>
+            <input type="date" id="birthDate" name="birthDate" required max="9999-12-31">
         </div>
         
         <div class="form-group">
@@ -20,7 +20,7 @@
         
         <div class="form-group">
             <label for="transitDate">トランジット日時（任意）:</label>
-            <input type="datetime-local" id="transitDate" name="transitDate">
+            <input type="datetime-local" id="transitDate" name="transitDate" max="9999-12-31T23:59">
         </div>
         
         <button type="submit">計算</button>
