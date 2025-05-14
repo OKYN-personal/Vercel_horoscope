@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ホロスコープ結果</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .result-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .back-button {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ホロスコープ結果</h1>
+        <div class="result-section">
+            <h2>入力情報</h2>
+            <p>生年月日: {{ result.birth_date }}</p>
+            <p>出生地: {{ result.birth_place }}</p>
+        </div>
+        <div class="result-section">
+            <h2>読み解き</h2>
+            {# 読み解きブロックを削除 #}
+        </div>
+        <div class="result-section">
+            <h2>天体の位置とサビアンシンボル</h2>
+            {% if result.planets %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet in result.planets %}
+                        <tr>
+                            <td>{{ planet.name }}</td>
+                            <td>{{ planet.sign }}</td>
+                            <td>{{ planet.degree_in_sign }}°</td>
+                            <td>{{ planet.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>天体情報が計算されませんでした。</p>
+            {% endif %}
+        </div>
+        <div class="result-section">
+            <h2>ソーラーアークによるサビアン予報 (直近3年間)</h2>
+            {% if result.solar_arc_predictions %}
+                {% for prediction in result.solar_arc_predictions %}
+                    <h3>{{ prediction.year }}歳</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>天体名</th>
+                                <th>星座</th>
+                                <th>度数 (星座内)</th>
+                                <th>サビアンシンボル</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for planet in prediction.planets %}
+                            <tr>
+                                <td>{{ planet.name }}</td>
+                                <td>{{ planet.sign }}</td>
+                                <td>{{ '%.2f'|format(planet.degree_in_sign) }}°</td>
+                                <td>{{ planet.sabian_symbol }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endfor %}
+            {% else %}
+                <p>ソーラーアーク予報は計算されませんでした。</p>
+            {% endif %}
+        </div>
+        {% if result.vernal_equinox is defined and result.vernal_equinox.planets %}
+        <div class="result-section">
+            <h2>今年の春分点の天体サビアン情報</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>天体名</th>
+                        <th>星座</th>
+                        <th>度数 (星座内)</th>
+                        <th>サビアンシンボル</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for planet in result.vernal_equinox.planets %}
+                    <tr>
+                        <td>{{ planet.name }}</td>
+                        <td>{{ planet.sign }}</td>
+                        <td>{{ '%.2f'|format(planet.degree_in_sign) }}°</td>
+                        <td>{{ planet.sabian_symbol }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <a href="/" class="back-button">もう一度計算する</a>
+        <form action="/download_pdf" method="post" style="margin-top: 20px;">
+            <input type="hidden" name="birth_date" value="{{ result.birth_date }}">
+            <input type="hidden" name="birth_place" value="{{ result.birth_place }}">
+            {# 必要に応じて他のパラメータもhiddenで渡す #}
+            <button type="submit" class="back-button" style="background:#2196F3;">PDFで出力</button>
+        </form>
+    </div>
+</body>
+</html> 

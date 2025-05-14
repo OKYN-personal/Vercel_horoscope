@@ -4,6 +4,7 @@ import math
 import pytz # タイムゾーン処理に必要
 from timezonefinder import TimezoneFinder # 緯度経度からタイムゾーンIDを取得
 from .utils import signs, aspect_types, get_sign_jp, get_aspect_glyph, get_planet_glyph # 日本語サイン名取得関数などをインポート
+from app.sabian import get_sabian_symbol # ★sabian.pyからget_sabian_symbolをインポート
 import logging # ロギング用に追加
 
 # loggingの設定 (必要に応じて設定変更)
@@ -54,6 +55,9 @@ PLANET_NAMES_JP = {
     'MC': 'MC',
     'True Node': 'ﾄﾞﾗｺﾞﾝﾍｯﾄﾞ',
 }
+
+# 予測などで使用する主要な天体リスト
+PLANETS_FOR_FORECAST = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto']
 
 def format_degree(degree_within_sign):
     """サイン内度数を度分形式に変換"""
@@ -294,8 +298,7 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
         # デフォルトオーブ (適宜調整)
         orb_degrees = {
             'Conjunction': 10, 'Opposition': 10, 'Trine': 8, 'Square': 8,
-            'Sextile': 6, 'Inconjunct': 2, 'Semisextile': 2, 'Quintile': 2, 'BiQuintile': 2,
-            # マイナーアスペクトを追加する場合
+            'Sextile': 6, 'Inconjunct': 2, 'Semisextile': 2, 'Quintile': 2, 'BiQuintile': 2
         }
 
     aspects = []
@@ -386,4 +389,205 @@ def generate_aspect_grid(aspects, planets_order=None):
         if p in grid and p in grid[p]:
             grid[p][p] = 'X'
 
-    return {'planets': planets_order, 'grid': grid} 
+    return {'planets': planets_order, 'grid': grid}
+
+def get_planet_details(longitude, planet_name):
+    """黄経と惑星名から、サイン、度数、記号などの詳細情報を取得するヘルパー関数"""
+    sign_jp, degree_within_sign = get_sign(longitude)
+    return {
+        'name': planet_name,
+        'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
+        'longitude': longitude,
+        'sign': signs[int(longitude // 30) % 12], # 英語サイン名
+        'sign_jp': sign_jp,
+        'degree': degree_within_sign,
+        'degree_formatted': format_degree(degree_within_sign),
+        'glyph': get_planet_glyph(planet_name)
+    }
+
+def get_current_age(birth_date):
+    """生年月日から現在の年齢を計算"""
+    today = datetime.now().date()
+    age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    return age
+
+def calculate_solar_arc_sabian_forecast(birth_date, birth_time, birth_place, latitude, longitude, timezone_offset_input, years_to_forecast=3):
+    """ソーラーアーク法によるサビアン予測 (年齢計算を修正)"""
+    swe.set_ephe_path('ephe')
+    tf = TimezoneFinder()
+    timezone_str = tf.timezone_at(lng=longitude, lat=latitude)
+    tz = None
+    if timezone_str:
+        try:
+            tz = pytz.timezone(timezone_str)
+        except pytz.exceptions.UnknownTimeZoneError:
+            tz = timezone(timedelta(hours=timezone_offset_input))
+    else:
+        tz = timezone(timedelta(hours=timezone_offset_input))
+
+    dt_naive = datetime.combine(birth_date, birth_time)
+    if hasattr(tz, 'localize'):
+        dt_aware_birth = tz.localize(dt_naive)
+    else:
+        dt_aware_birth = dt_naive.replace(tzinfo=tz)
+    
+    jd_ut_birth = swe.utc_to_jd(
+        dt_aware_birth.year, dt_aware_birth.month, dt_aware_birth.day,
+        dt_aware_birth.hour, dt_aware_birth.minute, dt_aware_birth.second, 1
+    )[1]
+
+    # 進行計算のための太陽の位置 (ネイタル)
+    sun_pos_natal, _ = swe.calc_ut(jd_ut_birth, swe.SUN, swe.FLG_SPEED)
+    natal_sun_longitude = sun_pos_natal[0]
+
+    forecast_data = []
+    current_actual_age = get_current_age(birth_date) # 現在の実年齢を取得
+
+    for i in range(years_to_forecast):
+        # 年齢の計算: 1年目 = 現在の年齢, 2年目 = 現在の年齢+1, ...
+        age_for_forecast_year = current_actual_age + i 
+        
+        # ソーラーアーク進行度数 (1年1度法)
+        solar_arc_progression = age_for_forecast_year # 単純に年齢を度数として加算
+
+        yearly_planets_data = []
+        for planet_name in PLANETS_FOR_FORECAST: # PLANETS_FOR_FORECAST を使用
+            planet_id = PLANETS[planet_name]
+            
+            # ネイタル天体位置を取得 (ここでは速度は不要なので swe.FLG_SWIEPH のみ)
+            natal_planet_pos, _ = swe.calc_ut(jd_ut_birth, planet_id, swe.FLG_SWIEPH) # swe.FLG_SPEED は不要
+            natal_planet_longitude = natal_planet_pos[0]
+
+            # 進行後の黄経
+            progressed_longitude = (natal_planet_longitude + solar_arc_progression) % 360
+            
+            planet_details = get_planet_details(progressed_longitude, planet_name)
+            sabian_symbol = get_sabian_symbol(progressed_longitude)
+
+            yearly_planets_data.append({
+                'name': planet_name,
+                'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
+                'longitude': progressed_longitude,
+                'sign': planet_details['sign'],
+                'sign_jp': planet_details['sign_jp'],
+                'degree_in_sign_decimal': planet_details['degree'], # 10進数表記のサイン内度数
+                'degree_formatted': planet_details['degree_formatted'],
+                'sabian_symbol': sabian_symbol,
+                'glyph': get_planet_glyph(planet_name)
+            })
+        
+        forecast_data.append({
+            'year_offset': i + 1, # 1年目, 2年目, ...
+            'age': age_for_forecast_year, # 予測時の年齢
+            'planets': yearly_planets_data
+        })
+
+    swe.close()
+    return forecast_data
+
+def calculate_vernal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の春分点の各天体のサビアンシンボルを計算 (東京基準)"""
+    swe.set_ephe_path('ephe')
+    
+    # 春分の日時を計算 (太陽が牡羊座0度に入る瞬間)
+    # swe.solcross() は黄経0度（春分点）を太陽が通過する時刻のユリウス日を返す
+    # flags に swe.CALC_RISE を指定すると、指定した地理的位置での日の出時刻になるため注意
+    # ここでは黄経0度通過時刻が欲しいので、太陽の動きのみに依存する。
+    # swe.houses などと異なり、観測地は直接影響しないはずだが、
+    # 一応東京の標準時で解釈するために jd_et を jd_ut に変換する際にオフセットを考慮。
+    # または、厳密にはUTCで計算し、表示時にJSTに変換する。
+    # ここではUTCで計算を進める。
+
+    # swe.fixstar_ut を使って太陽の黄経を求めるのは星用なので不適切。
+    # 春分点（太陽黄経0度）の時刻を求めるには、太陽の位置を精密に計算し、
+    # 黄経が0度になる瞬間を見つける必要がある。
+    # swe.calc_ut で太陽の位置を計算し、それが牡羊座0度になる日時を探す。
+    # 簡単な方法としては、指定年の3月20日か21日あたりで時刻を細かく動かして探す。
+    
+    # swe.pheno_ut を使用して太陽が牡羊座0度に入る正確なUT時刻を取得
+    # swe.PHENOCOND_DIRECTION は太陽が指定された黄経を通過する方向を示すフラグ
+    # swe.PHENOCOND_MINMAX は黄経の最小値/最大値
+    # swe.calc_ut で太陽の位置を0度として検索するより、専用関数があればそれを使う。
+    # swe.solcross(jd_start, target_lon) のような関数はswissephのPython APIに直接はない。
+    # 別の方法: 3月20日ごろのUTを計算し、その時刻での太陽黄経を見る
+    # 太陽が牡羊座0度になる瞬間を見つけるのは複雑なので、簡略化して春分の日正午(UT)で計算する
+    
+    dt_vernal_approx_utc = datetime(year, 3, 20, 12, 0, 0, tzinfo=timezone.utc) # 3月20日正午UTとする
+    # より正確には、swe.event_data() で春分点を求めるべきだが、ここでは簡略化
+
+    # 実際には、太陽が牡羊座0度になる正確な日時を求める
+    # 簡単なアプローチとして、指定年の3月19日から3月22日までの太陽黄経を1時間ごとに計算し、
+    # 0度をまたぐ（または359度台から0度台になる）瞬間を探す
+    # ここでは簡略化のため、3月20日正午(UT)の惑星位置とする
+    # より正確にはswe.fixstar_utで'VernalEquinox'の計算はできない。
+    # swe.calc_utで太陽黄経0度になる時間を探索する。
+    # 発展: swe.pheno_ut や swe.solcross のような機能がないか確認、なければ反復計算で探す。
+    # 暫定: 指定年の3月20日 12:00 UT の各天体の位置とする
+    # 厳密な春分点の計算
+    jd_start_search = swe.utc_to_jd(year, 3, 19, 0, 0, 0, 1)[1] # 3月19日0時UTから探索開始
+    jd_vernal_equinox_ut = jd_start_search # 初期値
+    
+    # swe.calc_ut を使って太陽黄経が0度になる瞬間を細かく探す
+    # 1時間ごとにチェック
+    for h in range(24 * 3): # 3日間 (19, 20, 21日)
+        current_jd_ut = jd_start_search + h / 24.0
+        sun_pos, _ = swe.calc_ut(current_jd_ut, swe.SUN, swe.FLG_SWIEPH)
+        sun_lon = sun_pos[0]
+        # 牡羊座0度付近の判定 (359.x度から0.x度へ変わる瞬間、または直接0.0度)
+        # 前の時間との比較が必要
+        if h > 0:
+            prev_sun_pos, _ = swe.calc_ut(jd_start_search + (h - 1) / 24.0, swe.SUN, swe.FLG_SWIEPH)
+            prev_sun_lon = prev_sun_pos[0]
+            if (prev_sun_lon > 270 and prev_sun_lon < 360) and (sun_lon >= 0 and sun_lon < 90): # 魚座から牡羊座へ
+                jd_vernal_equinox_ut = current_jd_ut # この1時間内に春分点がある
+                # さらに細かく探すならここから分単位で
+                for m in range(60):
+                    current_jd_ut_minute = jd_start_search + h / 24.0 + m / (24.0 * 60.0)
+                    sun_pos_minute, _ = swe.calc_ut(current_jd_ut_minute, swe.SUN, swe.FLG_SWIEPH)
+                    if sun_pos_minute[0] < prev_sun_lon and sun_pos_minute[0] < 1.0 : # 0度を越えて少し進んだところ
+                         # 0度を跨いだ瞬間に近いところで採用
+                        if abs(sun_pos_minute[0]) < abs(prev_sun_lon - 360):
+                             jd_vernal_equinox_ut = current_jd_ut_minute
+                        else:
+                             #前の時刻を採用
+                             jd_vernal_equinox_ut = jd_start_search + h / 24.0 + (m-1 if m > 0 else 0) / (24.0 * 60.0)
+                        break # 分単位の探索終了
+                break # 時間単位の探索終了
+    # もし上記で見つからなければ、デフォルトとして3月20日12時UT
+    if jd_vernal_equinox_ut == jd_start_search: # ループで見つからなかった場合
+         dt_vernal_approx_utc = datetime(year, 3, 20, 12, 0, 0, tzinfo=timezone.utc)
+         jd_vernal_equinox_ut = swe.utc_to_jd(
+             dt_vernal_approx_utc.year, dt_vernal_approx_utc.month, dt_vernal_approx_utc.day,
+             dt_vernal_approx_utc.hour, dt_vernal_approx_utc.minute, dt_vernal_approx_utc.second, 1
+         )[1]
+
+
+    vernal_equinox_planet_data = []
+    # PLANETS_FOR_FORECAST には冥王星が含まれている
+    for planet_name in PLANETS_FOR_FORECAST: # 全ての主要天体について計算
+        planet_id = PLANETS.get(planet_name) # PLANETS辞書からID取得
+        if planet_id is None: 
+            logging.warning(f"Vernal Equinox: Planet ID not found for {planet_name}, skipping.")
+            continue 
+
+        pos, _ = swe.calc_ut(jd_vernal_equinox_ut, planet_id, swe.FLG_SWIEPH) # 速度は不要
+        longitude = pos[0]
+        
+        planet_details = get_planet_details(longitude, planet_name)
+        sabian_symbol = get_sabian_symbol(longitude)
+        logging.debug(f"Vernal Equinox Data for {planet_name}: lon={longitude}, sabian='{sabian_symbol}'") # ★デバッグログ追加
+
+        vernal_equinox_planet_data.append({
+            'name': planet_name,
+            'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
+            'longitude': longitude,
+            'sign': planet_details['sign'],
+            'sign_jp': planet_details['sign_jp'],
+            'degree_in_sign_decimal': planet_details['degree'],
+            'degree_formatted': planet_details['degree_formatted'],
+            'sabian_symbol': sabian_symbol,
+            'glyph': get_planet_glyph(planet_name)
+        })
+    
+    swe.close()
+    return vernal_equinox_planet_data 

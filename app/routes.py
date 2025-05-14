@@ -3,7 +3,8 @@ from datetime import datetime
 # from .utils.horoscope import calculate_planet_positions, get_sabian_symbol
 # from .utils.aspects import calculate_aspects, get_aspect_description
 # from app import create_app # create_appは循環参照になる可能性があるので通常routesからは呼ばない
-from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid
+from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid, \
+    calculate_solar_arc_sabian_forecast, calculate_vernal_equinox_sabian # 新しい関数をインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
 from app.pdf_generator import generate_horoscope_pdf
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
@@ -26,7 +27,8 @@ def calculate():
         latitude = 35.6895 # 仮: 東京
         longitude = 139.6917 # 仮: 東京
         timezone_offset = 9.0 # 仮: JST
-        house_system = b'P' # 仮: Placidus
+        house_system = b'P' # 仮: Placidus に戻す
+        # house_system = b'W' # 仮: Whole Sign に変更して試す
 
         # ネイタルチャートの計算 (cusps も受け取る)
         natal_positions, chart_info, natal_cusps = calculate_natal_chart(
@@ -41,7 +43,7 @@ def calculate():
         aspect_grid_data = generate_aspect_grid(natal_aspects)
 
         # SVGチャートの生成
-        chart_svg = generate_chart_svg(natal_positions, natal_cusps)
+        chart_svg = generate_chart_svg(natal_positions, natal_cusps, natal_aspects, chart_info) # natal_aspects と chart_info を追加
 
         # サビアンシンボルの取得 (ASC, MCは対象外とするか？)
         natal_sabian = {}
@@ -73,19 +75,28 @@ def calculate():
                 sign_jp = planet_data.get('sign_jp')
                 house = planet_data.get('house')
                 planet_jp = planet_data.get('name_jp', planet) # 日本語名を取得
+                planet_glyph = planet_data.get('glyph') # 記号を取得
 
                 # サイン解釈
                 if sign_jp:
                     interp_key = f"{planet_jp} ({sign_jp})"
                     interp_text = PLANET_IN_SIGN_INTERPRETATIONS.get(planet, {}).get(sign_jp, f"{planet_jp}のサイン解釈は準備中です。")
-                    interpretations['planet_in_sign'][planet] = {'text': interp_text, 'key': interp_key}
+                    interpretations['planet_in_sign'][planet] = {
+                        'text': interp_text,
+                        'key': interp_key,
+                        'glyph': planet_glyph # glyph を追加
+                    }
 
                 # ハウス解釈
                 if house:
                     interp_key = f"{planet_jp} ({house}ハウス)"
                     # PLANET_IN_HOUSE_INTERPRETATIONS のキーは英語名のまま
                     interp_text = PLANET_IN_HOUSE_INTERPRETATIONS.get(planet, {}).get(house, f"{planet_jp}のハウス解釈は準備中です。")
-                    interpretations['planet_in_house'][planet] = {'text': interp_text, 'key': interp_key}
+                    interpretations['planet_in_house'][planet] = {
+                        'text': interp_text,
+                        'key': interp_key,
+                        'glyph': planet_glyph # glyph を追加
+                    }
 
         # ネイタルアスペクトの解釈を取得
         if natal_aspects:
@@ -101,9 +112,14 @@ def calculate():
 
                 if p1 and p2 and aspect_type:
                     planets_sorted = sorted([p1, p2])
-                    interp_key = f"{planets_sorted[0]}_{planets_sorted[1]}_{aspect_type}"
+                    # aspect_type を小文字に変換してキーを作成
+                    interp_key = f"{planets_sorted[0]}_{planets_sorted[1]}_{aspect_type.lower()}"
                     # 解釈文辞書のキーは英語名のまま
                     interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"{p1_jp} {aspect_glyph} {p2_jp} の解釈は準備中です。")
+
+                    # 主要アスペクトかどうかを判定
+                    MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
+                    is_major_aspect = aspect_type.lower() in MAJOR_ASPECT_TYPES
 
                     interpretations['aspects'].append({
                         'planet1': p1,
@@ -114,7 +130,8 @@ def calculate():
                         'aspect_glyph': aspect_glyph,
                         'planet1_glyph': p1_glyph,
                         'planet2_glyph': p2_glyph,
-                        'text': interp_text
+                        'text': interp_text,
+                        'is_major': is_major_aspect # is_major フラグを追加
                     })
 
         # トランジットの計算（指定がある場合）
@@ -151,8 +168,13 @@ def calculate():
                         # 現状のASPECT_INTERPRETATIONSは英語名ソートなので、それに合わせる。
                         # T.Sun-N.Moon と N.Moon-T.Sun のような区別をしたい場合はキー構造の変更が必要。
                         planets_sorted_for_key = sorted([p1, p2]) # キー検索用にソート
-                        interp_key = f"{planets_sorted_for_key[0]}_{planets_sorted_for_key[1]}_{aspect_type}"
+                        # aspect_type を小文字に変換してキーを作成
+                        interp_key = f"{planets_sorted_for_key[0]}_{planets_sorted_for_key[1]}_{aspect_type.lower()}"
                         interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"T.{p1_jp} {aspect_glyph} N.{p2_jp} の解釈は準備中です。")
+                        
+                        # 主要アスペクトかどうかを判定
+                        MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
+                        is_major_aspect = aspect_type.lower() in MAJOR_ASPECT_TYPES
                         
                         transit_aspect_interpretations.append({
                             'planet1': p1, 'planet2': p2,
@@ -161,7 +183,8 @@ def calculate():
                             'aspect_glyph': aspect_glyph,
                             'planet1_glyph': p1_glyph, 'planet2_glyph': p2_glyph,
                             'orb': aspect.get('orb'), # オーブも追加
-                            'text': interp_text
+                            'text': interp_text,
+                            'is_major': is_major_aspect # is_major フラグを追加
                         })
 
             # トランジットのサビアンシンボル
@@ -199,6 +222,21 @@ def calculate():
             }
             pdf_result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
 
+        # --- ソーラーアーク予測と春分点サビアンの計算 --- #
+        # ソーラーアーク予測 (直近3年)
+        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
+            birth_date, birth_time, birth_place, latitude, longitude, timezone_offset
+        )
+        # 今年の春分点サビアン (東京基準)
+        current_year = datetime.now().year
+        vernal_equinox_sabian = calculate_vernal_equinox_sabian(current_year)
+
+        # PDFデータに追加
+        pdf_result_data['solar_arc_forecast'] = solar_arc_forecast
+        pdf_result_data['vernal_equinox_sabian'] = vernal_equinox_sabian
+        pdf_result_data['current_year_for_vernal'] = current_year # 年情報も渡す
+        # --- ここまで追加 --- #
+
         pdf_filename = generate_horoscope_pdf(pdf_result_data) # PDF生成実行
         pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
 
@@ -227,7 +265,12 @@ def calculate():
                 'sabian': transit_sabian
             }
             result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
-
+        
+        # --- ソーラーアーク予測と春分点サビアンを result_data にも追加 --- #
+        result_data['solar_arc_forecast'] = solar_arc_forecast
+        result_data['vernal_equinox_sabian'] = vernal_equinox_sabian
+        result_data['current_year_for_vernal'] = current_year # 年情報も渡す
+        # --- ここまで追加 --- #
 
         # HTMLをレンダリングして返す
         return render_template('result.html', result=result_data)
