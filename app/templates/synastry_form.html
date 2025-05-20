@@ -155,6 +155,9 @@
             <!-- 人物1のフォーム -->
             <div class="person-form person-form-1">
                 <h3>人物1の情報</h3>
+                <button type="button" id="importDataBtn" class="btn btn-outline-primary btn-sm mb-3">
+                    <i class="fas fa-sync-alt"></i> ホロスコープの基本情報を引き継ぐ
+                </button>
                 <div class="form-group">
                     <label for="birthDate1">生年月日:
                         <span class="tooltip">
@@ -266,8 +269,58 @@
 {% endblock content %}
 
 {% block scripts %}
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ホロスコープの基本情報を引き継ぐボタンの処理
+    const importDataBtn = document.getElementById('importDataBtn');
+    if (importDataBtn) {
+        importDataBtn.addEventListener('click', function() {
+            // localStorageからデータを取得して入力（人物1として）
+            if (localStorage.getItem('birthDate')) {
+                document.getElementById('birthDate1').value = localStorage.getItem('birthDate');
+            }
+            
+            if (localStorage.getItem('birthTime')) {
+                document.getElementById('birthTime1').value = localStorage.getItem('birthTime');
+            }
+            
+            if (localStorage.getItem('birthPlace')) {
+                document.getElementById('birthPlace1').value = localStorage.getItem('birthPlace');
+            }
+            
+            // 緯度経度情報も取得
+            if (localStorage.getItem('latitude') && localStorage.getItem('longitude')) {
+                document.getElementById('latitude1').value = localStorage.getItem('latitude');
+                document.getElementById('longitude1').value = localStorage.getItem('longitude');
+                
+                // 座標フィードバックを更新
+                const feedbackEl1 = document.getElementById('locationFeedback1');
+                if (feedbackEl1) {
+                    try {
+                        const lat = parseFloat(localStorage.getItem('latitude'));
+                        const lng = parseFloat(localStorage.getItem('longitude'));
+                        feedbackEl1.innerHTML = `
+                            <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                            <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                            <span>ホロスコープから引き継がれた座標</span>
+                        `;
+                    } catch (e) {
+                        console.error("座標の変換エラー:", e);
+                    }
+                }
+                
+                // 緯度経度入力欄を表示
+                const coordinatesFields1 = document.getElementById('coordinatesFields1');
+                const toggleBtn1 = document.getElementById('toggleCoordinates1');
+                if (coordinatesFields1 && toggleBtn1) {
+                    coordinatesFields1.style.display = 'block';
+                    toggleBtn1.textContent = '自動入力に戻す';
+                }
+            }
+        });
+    }
+    
     // 緯度経度入力フィールドの表示切り替え（人物1）
     document.getElementById('toggleCoordinates1').addEventListener('click', function() {
         var coordsFields = document.getElementById('coordinatesFields1');

@@ -711,9 +711,9 @@ def calculate_lunar_nodes_endpoint():
     """月のノード（ドラゴンヘッド/テイル）の計算と解釈を行う"""
     try:
         # フォームデータを取得 (HTMLのname属性に合わせる)
-        birth_date = datetime.strptime(request.form['birth_date'], '%Y-%m-%d').date()
-        birth_time = datetime.strptime(request.form['birth_time'], '%H:%M').time()
-        birth_place = request.form['birth_place']
+        birth_date = datetime.strptime(request.form['birthDate'], '%Y-%m-%d').date()
+        birth_time = datetime.strptime(request.form['birthTime'], '%H:%M').time()
+        birth_place = request.form['birthPlace']
         
         # 緯度経度が手動入力されているか確認
         manual_latitude = request.form.get('latitude')
@@ -832,9 +832,9 @@ def predict_life_events_endpoint():
     """ライフイベント予測を行う"""
     try:
         # フォームデータを取得 (HTMLのname属性に合わせる)
-        birth_date = datetime.strptime(request.form['birth_date'], '%Y-%m-%d').date()
-        birth_time = datetime.strptime(request.form['birth_time'], '%H:%M').time()
-        birth_place = request.form['birth_place']
+        birth_date = datetime.strptime(request.form['birthDate'], '%Y-%m-%d').date()
+        birth_time = datetime.strptime(request.form['birthTime'], '%H:%M').time()
+        birth_place = request.form['birthPlace']
         forecast_years = int(request.form.get('event_duration_years', 5)) # HTMLのname属性に合わせる
         
         # 緯度経度が手動入力されているか確認

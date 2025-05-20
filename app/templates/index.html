@@ -236,4 +236,23 @@
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initAutocomplete&language=ja" async defer></script>
 {% endif %}
+
+<!-- 基本情報をlocalStorageに保存するスクリプト -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // フォームの送信前にデータをlocalStorageに保存
+    document.getElementById('horoscopeForm').addEventListener('submit', function(e) {
+        // 基本情報を保存
+        localStorage.setItem('birthDate', document.getElementById('birthDate').value);
+        localStorage.setItem('birthTime', document.getElementById('birthTime').value);
+        localStorage.setItem('birthPlace', document.getElementById('birthPlace').value);
+        
+        // 緯度経度情報も保存
+        if (document.getElementById('latitude').value) {
+            localStorage.setItem('latitude', document.getElementById('latitude').value);
+            localStorage.setItem('longitude', document.getElementById('longitude').value);
+        }
+    });
+});
+</script>
 {% endblock scripts %} 
