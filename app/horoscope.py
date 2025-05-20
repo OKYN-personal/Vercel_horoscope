@@ -728,3 +728,146 @@ def jd_to_datetime(jd):
     dt_tuple = swe.jdut1_to_utc(jd)
     return datetime(dt_tuple[0], dt_tuple[1], dt_tuple[2], 
                   dt_tuple[3], dt_tuple[4], int(dt_tuple[5])) 
+
+# シナストリー（相性）計算機能
+def calculate_synastry_aspects(positions1, positions2, orb_degrees=None):
+    """
+    2人のホロスコープ間のアスペクトを計算します。
+
+    Args:
+        positions1 (dict): 人物1の天体位置データ {planet_name: {'longitude': float, ...}}
+        positions2 (dict): 人物2の天体位置データ {planet_name: {'longitude': float, ...}}
+        orb_degrees (dict, optional): アスペクトタイプごとの許容オーブ。 Defaults to None.
+
+    Returns:
+        list: シナストリーアスペクト情報のリスト。各要素はdict形式で
+             {person1_planet, person2_planet, aspect_type, orb, aspect_glyph, ...}
+    """
+    if orb_degrees is None:
+        # シナストリー用のオーブ（通常より少し狭め）
+        orb_degrees = {
+            'Conjunction': 8, 'Opposition': 8, 'Trine': 7, 'Square': 7,
+            'Sextile': 5, 'Inconjunct': 2, 'Semisextile': 2, 'Quintile': 2, 'BiQuintile': 2
+        }
+
+    synastry_aspects = []
+    planets1 = sorted(list(positions1.keys()), key=lambda p: PLANETS.get(p, 999) if p in PLANETS else 999)
+    planets2 = sorted(list(positions2.keys()), key=lambda p: PLANETS.get(p, 999) if p in PLANETS else 999)
+
+    # 人物1の天体 対 人物2の天体のアスペクト計算
+    for p1_name in planets1:
+        # ASC/MCも含める場合は以下の条件文を削除
+        if p1_name in ['Asc', 'MC']: continue
+
+        for p2_name in planets2:
+            # ASC/MCも含める場合は以下の条件文を削除
+            if p2_name in ['Asc', 'MC']: continue
+
+            p1_lon = positions1[p1_name]['longitude']
+            p2_lon = positions2[p2_name]['longitude']
+
+            # 各アスペクトタイプをチェック
+            for aspect_name, aspect_angle in aspect_types.items():
+                orb = orb_degrees.get(aspect_name, 0)
+                diff = abs(p1_lon - p2_lon)
+                angle_diff = min(diff, 360 - diff)
+
+                if abs(angle_diff - aspect_angle) <= orb:
+                    synastry_aspects.append({
+                        'person1_planet': p1_name,
+                        'person2_planet': p2_name,
+                        'aspect_type': aspect_name,
+                        'orb': round(abs(angle_diff - aspect_angle), 2),
+                        'aspect_glyph': get_aspect_glyph(aspect_name),
+                        'person1_planet_glyph': get_planet_glyph(p1_name),
+                        'person2_planet_glyph': get_planet_glyph(p2_name),
+                        'person1_planet_jp': PLANET_NAMES_JP.get(p1_name, p1_name),
+                        'person2_planet_jp': PLANET_NAMES_JP.get(p2_name, p2_name)
+                    })
+                    break  # 一つのアスペクトが見つかったらループを抜ける
+
+    # アスペクトをオーブの小ささ順にソート
+    synastry_aspects.sort(key=lambda x: x['orb'])
+
+    return synastry_aspects
+
+def calculate_composite_chart(positions1, positions2):
+    """
+    2人の出生図から合成図（コンポジットチャート）を計算します。
+    各天体の中間点を計算し、合成図の天体位置とします。
+
+    Args:
+        positions1 (dict): 人物1の天体位置データ {planet_name: {'longitude': float, ...}}
+        positions2 (dict): 人物2の天体位置データ {planet_name: {'longitude': float, ...}}
+
+    Returns:
+        dict: 合成図の天体位置データ
+    """
+    composite_positions = {}
+    common_planets = set(positions1.keys()) & set(positions2.keys())
+
+    for planet in common_planets:
+        lon1 = positions1[planet]['longitude']
+        lon2 = positions2[planet]['longitude']
+
+        # 中間点計算（0-360度をまたぐ場合に対応）
+        # 例: 350度と10度の中間点は0度（180度ではない）
+        diff = abs(lon1 - lon2)
+        if diff > 180:
+            # 短い方の円弧で中間点を計算
+            min_lon = min(lon1, lon2)
+            max_lon = max(lon1, lon2)
+            # 0度をまたぐ場合
+            midpoint = (min_lon + max_lon + 360) / 2 % 360
+        else:
+            # 通常の中間点計算
+            midpoint = (lon1 + lon2) / 2
+
+        # サインの計算
+        sign_jp, degree_within_sign = get_sign(midpoint)
+        sign_index = int(midpoint // 30)
+        sign = signs[sign_index % 12]
+
+        composite_positions[planet] = {
+            'longitude': midpoint,
+            'sign': sign,
+            'sign_jp': sign_jp,
+            'degree': degree_within_sign,
+            'degree_formatted': format_degree(degree_within_sign),
+            'glyph': get_planet_glyph(planet),
+            'name_jp': PLANET_NAMES_JP.get(planet, planet)
+        }
+
+    return composite_positions
+
+def calculate_synastry(person1_data, person2_data):
+    """
+    2人の出生データからシナストリー（相性）情報を計算します。
+
+    Args:
+        person1_data (dict): 人物1の出生データ（natal_chart計算結果）
+        person2_data (dict): 人物2の出生データ（natal_chart計算結果）
+
+    Returns:
+        dict: シナストリー情報（アスペクト、合成図）
+    """
+    # 2人間のアスペクト計算
+    synastry_aspects = calculate_synastry_aspects(
+        person1_data['positions'], 
+        person2_data['positions']
+    )
+    
+    # 合成図（コンポジット）計算
+    composite_positions = calculate_composite_chart(
+        person1_data['positions'], 
+        person2_data['positions']
+    )
+    
+    # 合成図内のアスペクト計算
+    composite_aspects = calculate_aspects(composite_positions)
+    
+    return {
+        'synastry_aspects': synastry_aspects,
+        'composite_positions': composite_positions,
+        'composite_aspects': composite_aspects
+    } 

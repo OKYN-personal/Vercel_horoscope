@@ -13,6 +13,7 @@ from app.chart_generator import generate_chart_svg # SVG生成関数をインポ
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ハウスとアスペクトの解釈もインポート
 from app.utils import get_city_coordinates # 都市座標を取得する関数をインポート
 from app.geocoding import get_coordinates_from_google_maps # Google Maps APIを使う関数をインポート
+import os
 
 bp = Blueprint('main', __name__)
 
@@ -383,4 +384,295 @@ def calculate():
         traceback.print_exc() # エラー詳細をコンソールに表示
         # エラー時はエラーページを表示するか、JSONで返すか選択
         # ここでは例としてJSONでエラーを返す
+        return jsonify({'success': False, 'error': str(e)}), 400 
+
+@bp.route('/synastry', methods=['GET'])
+def synastry_form():
+    """相性占い（シナストリー）入力フォームの表示"""
+    # 現在時刻を取得（トランジット日時のデフォルト値として使用）
+    now = datetime.now()
+    today_datetime = now.strftime('%Y-%m-%dT%H:%M')
+
+    # Google Maps APIキーをテンプレートに渡す
+    google_maps_api_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+
+    return render_template('synastry_form.html', 
+                          today_datetime=today_datetime,
+                          google_maps_api_key=google_maps_api_key)
+
+@bp.route('/calculate_synastry', methods=['POST'])
+def calculate_synastry():
+    """相性占い（シナストリー）の計算実行"""
+    try:
+        # 人物1の入力情報
+        birth_date1 = datetime.strptime(request.form['birthDate1'], '%Y-%m-%d').date()
+        birth_time1 = datetime.strptime(request.form['birthTime1'], '%H:%M').time()
+        birth_place1 = request.form['birthPlace1']
+        
+        # 人物2の入力情報
+        birth_date2 = datetime.strptime(request.form['birthDate2'], '%Y-%m-%d').date()
+        birth_time2 = datetime.strptime(request.form['birthTime2'], '%H:%M').time()
+        birth_place2 = request.form['birthPlace2']
+        
+        # 緯度経度の取得（人物1）
+        latitude1 = None
+        longitude1 = None
+        if 'latitude1' in request.form and 'longitude1' in request.form and request.form['latitude1'] and request.form['longitude1']:
+            # 手動入力された値を使用
+            try:
+                latitude1 = float(request.form['latitude1'])
+                longitude1 = float(request.form['longitude1'])
+                location_source1 = 'manual'
+                location_warning1 = False
+            except ValueError:
+                # 形式エラー
+                location_source1 = 'error'
+                location_warning1 = True
+        else:
+            # 地名から緯度経度を取得
+            try:
+                geocode_result = get_geocode_from_place_name(birth_place1)
+                if geocode_result:
+                    latitude1, longitude1 = geocode_result
+                    location_source1 = 'geocode'
+                    location_warning1 = False
+                else:
+                    # ジオコーディング失敗
+                    location_source1 = 'error'
+                    location_warning1 = True
+            except Exception as e:
+                # ジオコーディングAPI例外
+                location_source1 = 'error'
+                location_warning1 = True
+                print(f"Geocoding error for {birth_place1}: {e}")
+
+        # 緯度経度の取得（人物2）
+        latitude2 = None
+        longitude2 = None
+        if 'latitude2' in request.form and 'longitude2' in request.form and request.form['latitude2'] and request.form['longitude2']:
+            # 手動入力された値を使用
+            try:
+                latitude2 = float(request.form['latitude2'])
+                longitude2 = float(request.form['longitude2'])
+                location_source2 = 'manual'
+                location_warning2 = False
+            except ValueError:
+                # 形式エラー
+                location_source2 = 'error'
+                location_warning2 = True
+        else:
+            # 地名から緯度経度を取得
+            try:
+                geocode_result = get_geocode_from_place_name(birth_place2)
+                if geocode_result:
+                    latitude2, longitude2 = geocode_result
+                    location_source2 = 'geocode'
+                    location_warning2 = False
+                else:
+                    # ジオコーディング失敗
+                    location_source2 = 'error'
+                    location_warning2 = True
+            except Exception as e:
+                # ジオコーディングAPI例外
+                location_source2 = 'error'
+                location_warning2 = True
+                print(f"Geocoding error for {birth_place2}: {e}")
+
+        # タイムゾーンオフセットを計算（人物1と人物2）
+        timezone_offset1 = calculate_timezone_offset(birth_date1, latitude1, longitude1)
+        timezone_offset2 = calculate_timezone_offset(birth_date2, latitude2, longitude2)
+        
+        # ホロスコープ計算（人物1）
+        chart_info1 = {}
+        natal_positions1, house_cusps1, asc1, mc1 = calculate_natal_chart(
+            birth_date1, birth_time1, latitude1, longitude1, timezone_offset1
+        )
+        chart_info1['house_system'] = 'Placidus'
+        chart_info1['ascendant'] = asc1
+        chart_info1['midheaven'] = mc1
+        chart_info1['house_cusps'] = house_cusps1
+
+        # ハウス番号の設定（人物1）
+        for planet_name, pos_data in natal_positions1.items():
+            pos_data['house'] = get_house_number(pos_data['longitude'], house_cusps1)
+        
+        # ネイタルアスペクトの計算（人物1）
+        natal_aspects1 = calculate_aspects(natal_positions1)
+
+        # ホロスコープ計算（人物2）
+        chart_info2 = {}
+        natal_positions2, house_cusps2, asc2, mc2 = calculate_natal_chart(
+            birth_date2, birth_time2, latitude2, longitude2, timezone_offset2
+        )
+        chart_info2['house_system'] = 'Placidus'
+        chart_info2['ascendant'] = asc2
+        chart_info2['midheaven'] = mc2
+        chart_info2['house_cusps'] = house_cusps2
+
+        # ハウス番号の設定（人物2）
+        for planet_name, pos_data in natal_positions2.items():
+            pos_data['house'] = get_house_number(pos_data['longitude'], house_cusps2)
+            
+        # ネイタルアスペクトの計算（人物2）
+        natal_aspects2 = calculate_aspects(natal_positions2)
+
+        # アスペクトグリッドの生成（人物1と人物2）
+        aspect_grid_data1 = get_aspect_grid(natal_positions1, natal_aspects1)
+        aspect_grid_data2 = get_aspect_grid(natal_positions2, natal_aspects2)
+
+        # チャート画像（SVG）の生成（人物1と人物2）
+        chart_svg1 = generate_chart_svg(natal_positions1, house_cusps1)
+        chart_svg2 = generate_chart_svg(natal_positions2, house_cusps2)
+
+        # サビアンシンボルの取得（人物1と人物2）
+        natal_sabian1 = {}
+        for planet, pos in natal_positions1.items():
+            sabian_text = get_sabian_symbol(pos['longitude'])
+            if sabian_text:
+                natal_sabian1[planet] = {
+                    'symbol': sabian_text,
+                    'interpretation': sabian_text
+                }
+
+        natal_sabian2 = {}
+        for planet, pos in natal_positions2.items():
+            sabian_text = get_sabian_symbol(pos['longitude'])
+            if sabian_text:
+                natal_sabian2[planet] = {
+                    'symbol': sabian_text,
+                    'interpretation': sabian_text
+                }
+
+        # 人物1の情報を辞書にまとめる
+        person1_data = {
+            'positions': natal_positions1,
+            'aspects': natal_aspects1,
+            'sabian': natal_sabian1,
+            'latitude': latitude1,
+            'longitude': longitude1,
+            'timezone_offset': timezone_offset1,
+            **chart_info1
+        }
+
+        # 人物2の情報を辞書にまとめる
+        person2_data = {
+            'positions': natal_positions2,
+            'aspects': natal_aspects2,
+            'sabian': natal_sabian2,
+            'latitude': latitude2,
+            'longitude': longitude2,
+            'timezone_offset': timezone_offset2,
+            **chart_info2
+        }
+
+        # シナストリー計算
+        synastry_data = calculate_synastry(person1_data, person2_data)
+
+        # シナストリーアスペクト解釈を取得
+        synastry_aspect_interpretations = []
+        if synastry_data['synastry_aspects']:
+            for aspect in synastry_data['synastry_aspects']:
+                p1 = aspect.get('person1_planet')
+                p2 = aspect.get('person2_planet')
+                p1_jp = aspect.get('person1_planet_jp', p1)
+                p2_jp = aspect.get('person2_planet_jp', p2)
+                aspect_type = aspect.get('aspect_type')
+                aspect_glyph = aspect.get('aspect_glyph')
+                p1_glyph = aspect.get('person1_planet_glyph')
+                p2_glyph = aspect.get('person2_planet_glyph')
+
+                if p1 and p2 and aspect_type:
+                    # シナストリーアスペクト解釈のキーを作成（順序考慮）
+                    interp_key = f"{p1}_{p2}_{aspect_type.lower()}_synastry"
+                    interp_text = get_interpretation_text(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）")
+                    
+                    # 主要アスペクトかどうかを判定
+                    MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
+                    is_major_aspect = aspect_type.lower() in MAJOR_ASPECT_TYPES
+                    
+                    synastry_aspect_interpretations.append({
+                        'person1_planet': p1, 'person2_planet': p2,
+                        'person1_planet_jp': p1_jp, 'person2_planet_jp': p2_jp,
+                        'aspect_type': aspect_type,
+                        'aspect_glyph': aspect_glyph,
+                        'person1_planet_glyph': p1_glyph, 'person2_planet_glyph': p2_glyph,
+                        'orb': aspect.get('orb'), # オーブも追加
+                        'text': interp_text,
+                        'is_major': is_major_aspect # is_major フラグを追加
+                    })
+
+        # 合成図のチャート生成
+        composite_chart_svg = generate_chart_svg(synastry_data['composite_positions'], house_cusps1)
+
+        # 相性度（単純なスコア）の計算
+        # ハードアスペクト（60点）、ソフトアスペクト（40点）で計算
+        compatibility_score = 0
+        max_score = 100
+        
+        HARD_ASPECTS = ['Conjunction', 'Opposition', 'Square']
+        SOFT_ASPECTS = ['Trine', 'Sextile']
+        
+        for aspect in synastry_data['synastry_aspects']:
+            aspect_type = aspect.get('aspect_type')
+            if aspect_type in HARD_ASPECTS:
+                compatibility_score += 6  # ハードアスペクトは重み大
+            elif aspect_type in SOFT_ASPECTS:
+                compatibility_score += 4  # ソフトアスペクトは重み小
+        
+        # 上限を100点に
+        compatibility_score = min(compatibility_score, max_score)
+
+        # 結果データの作成
+        result_data = {
+            'person1': {
+                'birth_date': birth_date1.strftime('%Y-%m-%d'),
+                'birth_time': birth_time1.strftime('%H:%M'),
+                'birth_place': birth_place1,
+                'natal': {
+                    'positions': natal_positions1,
+                    'aspects': natal_aspects1,
+                    'sabian': natal_sabian1,
+                    'latitude': latitude1,
+                    'longitude': longitude1,
+                    'location_source': location_source1,
+                    'location_warning': location_warning1,
+                    **chart_info1
+                },
+                'aspect_grid': aspect_grid_data1,
+                'chart_svg': chart_svg1
+            },
+            'person2': {
+                'birth_date': birth_date2.strftime('%Y-%m-%d'),
+                'birth_time': birth_time2.strftime('%H:%M'),
+                'birth_place': birth_place2,
+                'natal': {
+                    'positions': natal_positions2,
+                    'aspects': natal_aspects2,
+                    'sabian': natal_sabian2,
+                    'latitude': latitude2,
+                    'longitude': longitude2,
+                    'location_source': location_source2,
+                    'location_warning': location_warning2,
+                    **chart_info2
+                },
+                'aspect_grid': aspect_grid_data2,
+                'chart_svg': chart_svg2
+            },
+            'synastry': {
+                'aspects': synastry_data['synastry_aspects'],
+                'aspect_interpretations': synastry_aspect_interpretations,
+                'composite_positions': synastry_data['composite_positions'],
+                'composite_aspects': synastry_data['composite_aspects'],
+                'composite_chart_svg': composite_chart_svg,
+                'compatibility_score': compatibility_score
+            }
+        }
+        
+        # HTMLをレンダリングして返す
+        return render_template('synastry_result.html', result=result_data)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc() # エラー詳細をコンソールに表示
+        # エラー時はエラーページを表示するか、JSONで返すか選択
         return jsonify({'success': False, 'error': str(e)}), 400 

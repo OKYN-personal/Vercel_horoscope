@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>ホロスコープ解釈</title>
     <style>
-        /* result.html からスタイルをコピー＆ペースト */
+        /* 基本スタイル */
         body {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
             line-height: 1.6;
@@ -12,80 +12,150 @@
             font-size: 10pt;
             color: #333;
         }
-        /* result.html のスタイルを適用 */
-        .result-page h1 { margin-bottom: 1em; text-align: center; }
-        .result-section {
-            /* background-color: #f9f9f9; PDFでは背景色は不要かも */
-            padding: 1em 0; /* 上下のパディング調整 */
-            margin-bottom: 1.5em;
-            /* border-radius: 8px; PDFでは不要 */
-            /* border: 1px solid #eee; PDFでは不要かも */
-             page-break-inside: avoid; /* セクション内で改ページさせない */
-             border-top: 1px dashed #ccc; /* セクション区切り */
+        h1 {
+            margin-bottom: 1em;
+            text-align: center;
+            color: #337ab7;
+            font-size: 20pt;
         }
-         .result-section:first-of-type {
-             border-top: none; /* 最初のセクションの上線は不要 */
-        }
-        .result-section h2 {
+        h2 {
             color: #337ab7;
             border-bottom: 2px solid #337ab7;
             padding-bottom: 0.5em;
-            margin-top: 0;
+            margin-top: 1.5em;
             margin-bottom: 1em;
-            font-size: 1.5em;
+            font-size: 16pt;
         }
-        .result-section h3 {
+        h3 {
             color: #555;
             margin-top: 1.5em;
             margin-bottom: 0.8em;
-            font-size: 1.2em;
+            font-size: 14pt;
             page-break-after: avoid; /* 見出しの後で改ページさせない */
         }
+        /* セクションスタイル */
+        .result-section {
+            padding: 1em 0; /* 上下のパディング調整 */
+            margin-bottom: 1.5em;
+            page-break-inside: avoid; /* セクション内で改ページさせない */
+            border-top: 1px dashed #ccc; /* セクション区切り */
+        }
+        .result-section:first-of-type {
+            border-top: none; /* 最初のセクションの上線は不要 */
+        }
+        /* 表スタイル */
+        .positions-table, .aspect-grid-table, .sabian-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5em;
+        }
         .positions-table th, .positions-table td,
-        .aspect-grid-table th, .aspect-grid-table td {
+        .aspect-grid-table th, .aspect-grid-table td,
+        .sabian-table th, .sabian-table td {
             padding: 0.5em;
             border: 1px solid #ddd;
             text-align: center;
             font-size: 9pt; /* PDF用に少し小さく */
         }
-        .positions-table th, .aspect-grid-table th {
+        .positions-table th, .aspect-grid-table th, .sabian-table th {
             background-color: #f0f8ff;
             font-weight: bold;
         }
-        .positions-table td:nth-child(1), .positions-table td:nth-child(2) {
+        .positions-table td:nth-child(1), .positions-table td:nth-child(2),
+        .sabian-table td:nth-child(1), .sabian-table td:nth-child(2) {
             text-align: left;
         }
         .aspect-grid-table td {
             min-width: 25px; /* PDF用に調整 */
         }
-        .aspect-list { padding-left: 0; list-style: none; }
-        .aspect-list li { margin-bottom: 0.5em; font-size: 0.9em; }
-        .glyph { font-family: "Astrological Symbols", "Apple Symbols", "Arial Unicode MS", sans-serif; font-size: 1.2em; } /* フォールバックフォント追加 */
-
-        /* アスペクト記号の色 (例) - PDFでも有効か確認 */
+        /* アスペクトリスト */
+        .aspect-list {
+            padding-left: 0;
+            list-style: none;
+            columns: 2; /* 2カラム表示 */
+            column-gap: 2em;
+        }
+        .aspect-list li {
+            margin-bottom: 0.5em;
+            font-size: 0.9em;
+            page-break-inside: avoid;
+        }
+        /* 天体記号 */
+        .glyph {
+            font-family: "Astrological Symbols", "Apple Symbols", "Arial Unicode MS", sans-serif;
+            font-size: 1.2em;
+        }
+        /* アスペクト記号の色 */
         .aspect-conj { color: green; }
         .aspect-sext { color: blue; }
         .aspect-squa { color: red; }
         .aspect-trin { color: darkblue; }
         .aspect-oppo { color: darkred; }
-
-        /* SVG内のスタイル調整 (オプション) */
+        /* チャート */
         .chart-container svg {
-            max-width: 90%; /* PDFでのサイズ調整 */
+            max-width: 100%;
             height: auto;
-             page-break-inside: avoid; /* チャート内で改ページさせない */
+            page-break-inside: avoid;
         }
-
-        /* 解釈文の改行を保持 */
+        /* 解釈テキスト */
         .interpretation-text {
             white-space: pre-wrap; 
             font-size: 9pt;
         }
         .sabian-interpretation h4 {
-             font-size: 10pt;
-             margin-bottom: 0.3em;
-             page-break-after: avoid;
+            font-size: 10pt;
+            margin-bottom: 0.3em;
+            page-break-after: avoid;
         }
+        /* 解釈セクション */
+        .interpretation-item {
+            margin-bottom: 1.2em;
+            padding-bottom: 0.8em;
+            border-bottom: 1px dotted #eee;
+        }
+        .interpretation-item:last-child {
+            border-bottom: none;
+        }
+        .interpretation-item h4 {
+            margin-top: 0.5em;
+            margin-bottom: 0.3em;
+            color: #444;
+        }
+        /* アスペクト解釈 */
+        .aspect-interpretation {
+            margin-bottom: 1em;
+            padding: 0.5em;
+            border-left: 3px solid #f0f0f0;
+        }
+        .aspect-title {
+            font-weight: bold;
+            margin-bottom: 0.3em;
+            color: #333;
+        }
+        /* 目次 */
+        .toc {
+            margin-bottom: 2em;
+        }
+        .toc-item {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.5em;
+        }
+        .toc-number {
+            min-width: 1.5em;
+        }
+        .toc-title {
+            flex-grow: 1;
+        }
+        .toc-dots {
+            flex-grow: 1;
+            margin: 0 0.5em;
+            border-bottom: 1px dotted #ccc;
+        }
+        .toc-page {
+            text-align: right;
+        }
+        /* ページフッター */
         .footer {
             text-align: center;
             margin-top: 2em;
@@ -94,15 +164,100 @@
             border-top: 1px solid #eee;
             padding-top: 1em;
         }
+        /* 色分け */
+        .highlight-major {
+            background-color: #f8f8f8;
+        }
+        .bookmark-section {
+            page-break-before: always;
+        }
     </style>
 </head>
 <body>
-    {# result.html の <div class="container result-page"> の中身をベースにする #}
     <h1>ホロスコープ解釈</h1>
     <p style="text-align: center; margin-bottom: 1.5em;">生成日時: {{ generated_at }}</p>
 
-    <div class="result-section">
-        <h2>入力情報</h2>
+    <!-- 目次 -->
+    <div class="result-section" id="toc">
+        <h2>目次</h2>
+        <div class="toc">
+            <div class="toc-item">
+                <span class="toc-number">1.</span>
+                <span class="toc-title">基本情報</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">1</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">2.</span>
+                <span class="toc-title">天体の位置 (ネイタル)</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">1</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">3.</span>
+                <span class="toc-title">ホロスコープチャート</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">2</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">4.</span>
+                <span class="toc-title">アスペクト (ネイタル)</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">2</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">5.</span>
+                <span class="toc-title">天体のサイン解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">3</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">6.</span>
+                <span class="toc-title">天体のハウス解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">4</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">7.</span>
+                <span class="toc-title">アスペクト解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">5</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">8.</span>
+                <span class="toc-title">サビアンシンボル</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">6</span>
+            </div>
+            {% if solar_arc_forecast %}
+            <div class="toc-item">
+                <span class="toc-number">9.</span>
+                <span class="toc-title">ソーラーアーク予測</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">7</span>
+            </div>
+            {% endif %}
+            {% if secondary_progression %}
+            <div class="toc-item">
+                <span class="toc-number">10.</span>
+                <span class="toc-title">二次進行法予測</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">8</span>
+            </div>
+            {% endif %}
+            {% if transit is defined and transit %}
+            <div class="toc-item">
+                <span class="toc-number">11.</span>
+                <span class="toc-title">トランジット情報</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">9</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="result-section" id="basic-info">
+        <h2>1. 基本情報</h2>
         <p>生年月日: {{ birth_date }} {{ birth_time }}</p>
         <p>出生地: {{ birth_place }} 
             (緯度: {{ '%.2f'|format(natal.latitude) if natal.latitude is not none else 'N/A' }}, 
@@ -111,8 +266,8 @@
         <p>タイムゾーン: {{ natal.timezone | default('N/A') }} / ハウスシステム: {{ natal.house_system | default('N/A') }}</p>
     </div>
 
-    <div class="result-section">
-        <h2>天体の位置 (ネイタル)</h2>
+    <div class="result-section" id="natal-positions">
+        <h2>2. 天体の位置 (ネイタル)</h2>
         <table class="positions-table">
             <thead>
                 <tr>
@@ -127,7 +282,7 @@
                 {% if natal.positions %}
                     {% for planet_name, data in natal.positions.items() %}
                     <tr>
-                        <td>{{ planet_name }}</td>
+                        <td>{{ data.name_jp | default(planet_name) }}</td>
                         <td>{{ data.sign_jp }}</td>
                         <td>{{ data.degree_formatted }}</td>
                         <td>{{ data.house }}</td>
@@ -141,8 +296,8 @@
         </table>
     </div>
 
-    <div class="result-section">
-        <h2>ホロスコープチャート</h2>
+    <div class="result-section" id="natal-chart">
+        <h2>3. ホロスコープチャート</h2>
         <div class="chart-container" style="text-align: center;">
             {% if chart_svg %}
                 {{ chart_svg | safe }} {# SVGを安全に描画 #}
@@ -152,15 +307,15 @@
         </div>
     </div>
 
-    <div class="result-section">
-        <h2>アスペクト (ネイタル)</h2>
+    <div class="result-section" id="natal-aspects">
+        <h2>4. アスペクト (ネイタル)</h2>
         {% if natal.aspects %}
             <ul class="aspect-list">
             {% for aspect in natal.aspects %}
                 <li>
                     <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
-                    ({{ aspect.planet1 }} - {{ aspect.planet2 }})
-                    オーブ: {{ aspect.orb }}°
+                    ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }})
+                    オーブ: {{ '%.2f'|format(aspect.orb) }}°
                 </li>
             {% endfor %}
             </ul>
@@ -198,30 +353,9 @@
         {% endif %}
     </div>
     
-    <div class="result-section">
-        <h2>総合的な読み解き (詳細) - サビアンシンボル</h2>
-        <div class="interpretation">
-            {% if natal.sabian and natal.sabian is mapping and natal.sabian | length > 0 %}
-                {% for planet_name, sabian_data in natal.sabian.items() %}
-                    <div class="sabian-interpretation" style="margin-bottom: 1em;">
-                        <h4>
-                            <span class="glyph">{{ natal.positions[planet_name].glyph if planet_name in natal.positions else planet_name }}</span> 
-                            {{ natal.positions[planet_name].name_jp | default(planet_name) }}のサビアンシンボル: {{ sabian_data.symbol }}
-                        </h4>
-                        {# <p class="interpretation-text">{{ sabian_data.interpretation }}</p> #} {# 冗長なのでコメントアウト #}
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p style="color: #aaa;">サビアンシンボルの解釈情報がありません。</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- 解釈 -->
-    <div class="result-section">
-        <h2>リーディング</h2>
-
-        <h3>天体のサイン解説 (ネイタル)</h3>
+    <!-- 解釈 - 各セクションをブックマークセクションにする -->
+    <div class="bookmark-section result-section" id="sign-interpretations">
+        <h2>5. 天体のサイン解説</h2>
         <div class="interpretation">
             {% if interpretations and interpretations.planet_in_sign %}
                 {% for planet_key, interp_data in interpretations.planet_in_sign.items() %}
@@ -234,8 +368,10 @@
                  <p>天体のサイン解釈情報がありません。</p>
             {% endif %}
         </div>
+    </div>
 
-        <h3>天体のハウス解説 (ネイタル)</h3>
+    <div class="bookmark-section result-section" id="house-interpretations">
+        <h2>6. 天体のハウス解説</h2>
         <div class="interpretation">
              {% if interpretations and interpretations.planet_in_house %}
                 {% for planet_key, interp_data in interpretations.planet_in_house.items() %}
@@ -248,18 +384,20 @@
                  <p>天体のハウス解釈情報がありません。</p>
             {% endif %}
         </div>
+    </div>
 
-        <h3>アスペクト解説 (ネイタル)</h3>
+    <div class="bookmark-section result-section" id="aspect-interpretations">
+        <h2>7. アスペクト解説</h2>
         <div class="interpretation">
             {% if interpretations and interpretations.aspects %}
                 {% for aspect in interpretations.aspects %}
-                <div class="interpretation-item aspect-item">
-                    <h4>
+                <div class="interpretation-item aspect-interpretation {% if aspect.is_major %}highlight-major{% endif %}">
+                    <div class="aspect-title">
                         <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
                         <span class="glyph">{{ aspect.aspect_glyph }}</span>
                         <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
                         ({{ aspect.aspect_type }})
-                    </h4>
+                    </div>
                     <p class="interpretation-text">{{ aspect.text }}</p>
                 </div>
                 {% endfor %}
@@ -267,8 +405,10 @@
                 <p>ネイタルアスペクトの解釈情報がありません。</p>
             {% endif %}
         </div>
+    </div>
 
-        <h3>サビアンシンボル (ネイタル)</h3>
+    <div class="bookmark-section result-section" id="sabian-symbols">
+        <h2>8. サビアンシンボル</h2>
         <div class="interpretation">
             {% if natal.sabian %}
                 {% for planet, sabian_data in natal.sabian.items() %}
@@ -277,7 +417,6 @@
                         <span class="glyph">{{ natal.positions[planet].glyph }}</span>
                         {{ natal.positions[planet].name_jp }}のサビアンシンボル: {{ sabian_data.symbol }}
                     </h4>
-                    {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
                 </div>
                 {% endfor %}
             {% else %}
@@ -288,11 +427,11 @@
 
     <!-- 四季のサビアンシンボル MOVED HERE -->
     <div class="result-section" id="seasonal-sabian-symbols-pdf">
-        <h2>四季のサビアンシンボル ({{ current_year_for_seasonal }}年 東京基準)</h2>
+        <h3>四季のサビアンシンボル ({{ current_year_for_seasonal }}年 東京基準)</h3>
 
         {% macro display_seasonal_sabian_pdf(title, sabian_data, year) %}
             {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
-                <h3>{{ year }}年 {{ title }}</h3>
+                <h4>{{ year }}年 {{ title }}</h4>
                 <table class="sabian-table seasonal-sabian-table positions-table"> {# positions-tableクラスも適用してスタイルを統一 #}
                     <thead>
                         <tr>
@@ -326,8 +465,8 @@
 
     <!-- ソーラーアーク予測 -->
     {% if solar_arc_forecast %}
-    <div class="result-section forecast-pdf-section" style="margin-top: 1.5em;">
-        <h2>ソーラーアークによるサビアン予測 (直近{{ solar_arc_forecast | length }}年間)</h2>
+    <div class="bookmark-section result-section forecast-pdf-section" id="solar-arc-forecast">
+        <h2>9. ソーラーアークによるサビアン予測 (直近{{ solar_arc_forecast | length }}年間)</h2>
         {% for yearly_data in solar_arc_forecast %}
             <h3>{{ yearly_data.age }}歳</h3>
             <table class="positions-table" style="margin-bottom: 1.5em; font-size: 9pt;">
@@ -357,8 +496,8 @@
 
     {# --- Secondary Progression Forecast for PDF --- #}
     {% if secondary_progression %}
-    <div class="result-section forecast-pdf-section" style="margin-top: 1.5em;">
-        <h2>二次進行法による予測 (直近{{ secondary_progression | length }}年間)</h2>
+    <div class="bookmark-section result-section forecast-pdf-section" id="secondary-progression">
+        <h2>10. 二次進行法による予測 (直近{{ secondary_progression | length }}年間)</h2>
         {% for yearly_data in secondary_progression %}
             <h3>{{ yearly_data.age }}歳 (進行日: {{ yearly_data.progressed_date }})</h3>
             <table class="positions-table" style="margin-bottom: 1.5em; font-size: 9pt;">
@@ -388,8 +527,72 @@
     {% endif %}
     {# --- End Secondary Progression Forecast for PDF --- #}
 
+    <!-- トランジット情報 (存在する場合) -->
+    {% if transit is defined and transit %}
+    <div class="bookmark-section result-section" id="transit-info">
+        <h2>11. トランジット情報 ({{ transit_date }})</h2>
+        
+        <h3>トランジット天体位置</h3>
+        <table class="positions-table">
+            <thead>
+                <tr>
+                    <th>天体</th>
+                    <th>サイン</th>
+                    <th>度数</th>
+                    <th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for planet_name, data in transit.positions.items() %}
+                <tr>
+                    <td>{{ data.name_jp | default(planet_name) }}</td>
+                    <td>{{ data.sign_jp }}</td>
+                    <td>{{ data.degree_formatted }}</td>
+                    <td><span class="glyph">{{ data.glyph }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>トランジット - ネイタル アスペクト</h3>
+        {% if transit.aspects %}
+        <ul class="aspect-list">
+            {% for aspect in transit.aspects %}
+            <li>
+                <span class="glyph">{{ aspect.planet1_glyph }}</span>T {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>N
+                ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }})
+                オーブ: {{ '%.2f'|format(aspect.orb) }}°
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>トランジット-ネイタル アスペクト情報がありません。</p>
+        {% endif %}
+        
+        <h3>トランジットアスペクト解釈</h3>
+        {% if transit.aspect_interpretations %}
+        <div class="interpretation">
+            {% for aspect in transit.aspect_interpretations %}
+            <div class="interpretation-item aspect-interpretation {% if aspect.is_major %}highlight-major{% endif %}">
+                <div class="aspect-title">
+                    <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
+                    <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                    <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
+                    オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                </div>
+                <p class="interpretation-text">{{ aspect.text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>トランジットアスペクト解釈情報がありません。</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="footer">
-        <p>This horoscope interpretation is generated based on astrological calculations. Interpretations are for reference only.</p>
+        <p>このホロスコープ解釈は占星術の計算に基づいて生成されています。解釈はあくまで参考として活用してください。</p>
+        <p>© {{ current_year_for_seasonal }} ホロスコープ計算システム</p>
     </div>
 
 </body>

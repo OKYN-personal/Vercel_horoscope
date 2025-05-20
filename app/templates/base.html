@@ -12,6 +12,17 @@
         <h1>ホロスコープ・サビアンシンボル</h1>
     </header>
     
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('main.index') }}" class="navbar-brand">ホロスコープ計算</a>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('main.index') }}">ホロスコープ</a></li>
+                <li><a href="{{ url_for('main.synastry_form') }}">相性占い</a></li>
+                <li><a href="#">ヘルプ</a></li>
+            </ul>
+        </div>
+    </nav>
+    
     <main>
         {% block content %}{% endblock %}
     </main>
