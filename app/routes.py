@@ -803,21 +803,83 @@ def calculate_lunar_nodes_endpoint():
         pdf_filename = generate_lunar_nodes_pdf(pdf_data)
         pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
         
+        # 結果ページへのリダイレクト用URLを生成
+        result_url = url_for('main.lunar_nodes_result', 
+                            birth_date=birth_date.strftime('%Y-%m-%d'),
+                            birth_time=birth_time.strftime('%H:%M'),
+                            birth_place=birth_place,
+                            latitude=latitude,
+                            longitude=longitude,
+                            location_source=location_source,
+                            location_warning=location_warning if 'location_warning' in locals() else False,
+                            pdf_url=pdf_url)
+        
+        # クライアントにJSONでリダイレクト先URLを返す
+        return jsonify({
+            'success': True,
+            'redirect_url': result_url
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error in /calculate_lunar_nodes: {e}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/lunar_nodes_result', methods=['GET'])
+def lunar_nodes_result():
+    """月のノード計算結果ページをレンダリングする"""
+    try:
+        # URLパラメータから情報を取得
+        birth_date = request.args.get('birth_date')
+        birth_time = request.args.get('birth_time')
+        birth_place = request.args.get('birth_place')
+        latitude = float(request.args.get('latitude'))
+        longitude = float(request.args.get('longitude'))
+        location_source = request.args.get('location_source')
+        location_warning = request.args.get('location_warning') == 'True'
+        pdf_url = request.args.get('pdf_url')
+        
+        # 出生情報からデータを再計算（または計算済みのデータをセッションから取得するなど）
+        birth_date_obj = datetime.strptime(birth_date, '%Y-%m-%d').date()
+        birth_time_obj = datetime.strptime(birth_time, '%H:%M').time()
+        
+        timezone_offset = 9.0  # 日本標準時
+        dt_naive = datetime.combine(birth_date_obj, birth_time_obj)
+        tz = timezone(timedelta(hours=timezone_offset))
+        dt_aware = dt_naive.replace(tzinfo=tz)
+        dt_utc = dt_aware.astimezone(timezone.utc)
+        jd_ut = swe.utc_to_jd(dt_utc.year, dt_utc.month, dt_utc.day,
+                            dt_utc.hour, dt_utc.minute, dt_utc.second, 1)[1]
+        
+        # 月のノードを計算
+        lunar_nodes = calculate_lunar_nodes(jd_ut)
+        
+        # 月のノードの解釈
+        lunar_node_interpretations = {}
+        
+        if 'True_Node' in lunar_nodes and 'sign_jp' in lunar_nodes['True_Node']:
+            sign_jp = lunar_nodes['True_Node']['sign_jp']
+            if sign_jp in NODE_INTERPRETATIONS['True_Node']:
+                lunar_node_interpretations['True_Node'] = NODE_INTERPRETATIONS['True_Node'][sign_jp]
+        
+        if 'Dragon_Tail' in lunar_nodes and 'sign_jp' in lunar_nodes['Dragon_Tail']:
+            sign_jp = lunar_nodes['Dragon_Tail']['sign_jp']
+            if sign_jp in NODE_INTERPRETATIONS['Dragon_Tail']:
+                lunar_node_interpretations['Dragon_Tail'] = NODE_INTERPRETATIONS['Dragon_Tail'][sign_jp]
+        
         # テンプレートに変数を渡して結果ページをレンダリング
         return render_template('lunar_nodes_result.html', 
-                              birth_date=birth_date,
-                              birth_time=birth_time,
+                              birth_date=birth_date_obj,
+                              birth_time=birth_time_obj,
                               birth_place=birth_place,
                               latitude=latitude,
                               longitude=longitude,
                               location_source=location_source,
-                              location_warning=location_warning if 'location_warning' in locals() else False,
+                              location_warning=location_warning,
                               lunar_nodes=lunar_nodes,
                               lunar_node_interpretations=lunar_node_interpretations,
                               pdf_url=pdf_url)
     except Exception as e:
-        current_app.logger.error(f"Error in /calculate_lunar_nodes: {e}\n{traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error(f"Error in /lunar_nodes_result: {e}\n{traceback.format_exc()}")
+        return render_template('error.html', error=str(e))
 
 # 新しいエンドポイント: ライフイベント予測専用ページ
 @bp.route('/life_events', methods=['GET'])
@@ -911,18 +973,70 @@ def predict_life_events_endpoint():
         pdf_filename = generate_life_events_pdf(pdf_data)
         pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
         
+        # 結果ページへのリダイレクト用URLを生成
+        result_url = url_for('main.life_events_result', 
+                            birth_date=birth_date.strftime('%Y-%m-%d'),
+                            birth_time=birth_time.strftime('%H:%M'),
+                            birth_place=birth_place,
+                            latitude=latitude,
+                            longitude=longitude,
+                            location_source=location_source,
+                            location_warning=location_warning if 'location_warning' in locals() else False,
+                            forecast_years=forecast_years,
+                            pdf_url=pdf_url)
+        
+        # クライアントにJSONでリダイレクト先URLを返す
+        return jsonify({
+            'success': True,
+            'redirect_url': result_url
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error in /predict_life_events: {e}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/life_events_result', methods=['GET'])
+def life_events_result():
+    """ライフイベント予測結果ページをレンダリングする"""
+    try:
+        # URLパラメータから情報を取得
+        birth_date = request.args.get('birth_date')
+        birth_time = request.args.get('birth_time')
+        birth_place = request.args.get('birth_place')
+        latitude = float(request.args.get('latitude'))
+        longitude = float(request.args.get('longitude'))
+        location_source = request.args.get('location_source')
+        location_warning = request.args.get('location_warning') == 'True'
+        forecast_years = int(request.args.get('forecast_years', 5))
+        pdf_url = request.args.get('pdf_url')
+        
+        # 出生情報からデータを再計算（または計算済みのデータをセッションから取得するなど）
+        birth_date_obj = datetime.strptime(birth_date, '%Y-%m-%d').date()
+        birth_time_obj = datetime.strptime(birth_time, '%H:%M').time()
+        
+        timezone_offset = 9.0  # 日本標準時
+        house_system = b'P'  # Placidus
+        
+        # ネイタルチャートの計算
+        natal_positions, chart_info, natal_cusps = calculate_natal_chart(
+            birth_date_obj, birth_time_obj, birth_place,
+            latitude, longitude, timezone_offset, house_system
+        )
+        
+        # ライフイベント予測
+        life_events = predict_life_events(natal_positions, forecast_years)
+        
         # テンプレートに変数を渡して結果ページをレンダリング
         return render_template('life_events_result.html', 
-                              birth_date=birth_date,
-                              birth_time=birth_time,
+                              birth_date=birth_date_obj,
+                              birth_time=birth_time_obj,
                               birth_place=birth_place,
                               latitude=latitude,
                               longitude=longitude,
                               location_source=location_source,
-                              location_warning=location_warning if 'location_warning' in locals() else False,
+                              location_warning=location_warning,
                               forecast_years=forecast_years,
                               life_events=life_events,
                               pdf_url=pdf_url)
     except Exception as e:
-        current_app.logger.error(f"Error in /predict_life_events: {e}\n{traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500 
+        current_app.logger.error(f"Error in /life_events_result: {e}\n{traceback.format_exc()}")
+        return render_template('error.html', error=str(e)) 
