@@ -5,7 +5,8 @@ from datetime import datetime
 # from app import create_app # create_appは循環参照になる可能性があるので通常routesからは呼ばない
 from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid, \
     calculate_solar_arc_sabian_forecast, calculate_vernal_equinox_sabian, \
-    calculate_summer_solstice_sabian, calculate_autumnal_equinox_sabian, calculate_winter_solstice_sabian # 新しい関数をインポート
+    calculate_summer_solstice_sabian, calculate_autumnal_equinox_sabian, calculate_winter_solstice_sabian, \
+    calculate_secondary_progression # 新しい関数をインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
 from app.pdf_generator import generate_horoscope_pdf
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
@@ -251,6 +252,29 @@ def calculate():
             latitude, longitude, timezone_offset
         )
 
+        # 進行法計算年数の取得（デフォルトは3年）
+        progression_years = 3
+        if 'progression_years' in request.form and request.form['progression_years']:
+            try:
+                progression_years = int(request.form['progression_years'])
+            except ValueError:
+                # 整数に変換できない場合はデフォルト値を使用
+                pass
+
+        # ソーラーアーク予測（更新）
+        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
+            birth_date, birth_time, birth_place,
+            latitude, longitude, timezone_offset,
+            years_to_forecast=progression_years
+        )
+
+        # 二次進行法による予測
+        secondary_progression = calculate_secondary_progression(
+            birth_date, birth_time, birth_place,
+            latitude, longitude, timezone_offset,
+            years_to_forecast=progression_years
+        )
+
         # 春分点のサビアンシンボル (ネイタル年)
         vernal_equinox_sabian = calculate_vernal_equinox_sabian(birth_date.year)
 
@@ -295,6 +319,7 @@ def calculate():
             'chart_svg': chart_svg, 
             'interpretations': interpretations,
             'solar_arc_forecast': solar_arc_forecast, # PDFに追加
+            'secondary_progression': secondary_progression, # 二次進行法のデータを追加
             'vernal_equinox_sabian': vernal_equinox_sabian, # PDFに追加
             'summer_solstice_sabian': summer_solstice_sabian, # PDFに追加
             'autumnal_equinox_sabian': autumnal_equinox_sabian, # PDFに追加
@@ -333,6 +358,7 @@ def calculate():
             'pdf_url': pdf_url, 
             'interpretations': interpretations, 
             'solar_arc_forecast': solar_arc_forecast, 
+            'secondary_progression': secondary_progression, # 二次進行法のデータを追加
             'vernal_equinox_sabian': vernal_equinox_sabian, 
             'summer_solstice_sabian': summer_solstice_sabian, 
             'autumnal_equinox_sabian': autumnal_equinox_sabian, 

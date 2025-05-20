@@ -163,14 +163,20 @@
         <div class="form-section">
             <h2>トランジット設定</h2>
             <div class="form-group">
-                <label for="transitDate">トランジット日時:
-                    <span class="tooltip">
-                        <span class="tooltip-icon">?</span>
-                        <span class="tooltip-text">トランジット（現在や特定日の天体配置）を計算する日時を指定します。デフォルトは本日の正午です。</span>
-                    </span>
-                </label>
-                <input type="datetime-local" id="transitDate" name="transitDate" max="9999-12-31T23:59">
-                <small class="help-text">※入力しない場合も本日の正午でトランジットが計算されます</small>
+                <label for="transitDate">トランジット日時<span class="optional">(任意: 未指定の場合は現在時刻)</span></label>
+                <input type="datetime-local" class="form-control" id="transitDate" name="transitDate" value="{{ today_datetime }}">
+                <small class="form-text text-muted">現在または指定日の天体位置と出生図との関係を計算します</small>
+            </div>
+
+            <!-- 進行法オプション -->
+            <div class="form-group">
+                <label for="progression_years">進行法計算年数<span class="optional">(任意)</span></label>
+                <select class="form-control" id="progression_years" name="progression_years">
+                    <option value="3" selected>3年</option>
+                    <option value="5">5年</option>
+                    <option value="10">10年</option>
+                </select>
+                <small class="form-text text-muted">二次進行法とソーラーアークの計算年数を指定します</small>
             </div>
         </div>
         

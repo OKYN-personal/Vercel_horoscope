@@ -634,4 +634,97 @@ def calculate_winter_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tok
     """指定された年の冬至点の各天体のサビアンシンボルを計算 (東京基準)"""
     jd_winter_solstice_ut = find_solar_longitude_event_jd_ut(year, 270.0)
     winter_solstice_data = calculate_celestial_sabian_at_event(jd_winter_solstice_ut, f"{year}年 冬至点")
-    return winter_solstice_data 
+    return winter_solstice_data
+
+def calculate_secondary_progression(birth_date, birth_time, birth_place, latitude, longitude, 
+                                    timezone_offset_input, years_to_forecast=3):
+    """二次進行法による天体位置計算（1日=1年の法則）
+    
+    Args:
+        birth_date (date): 誕生日
+        birth_time (time): 誕生時間
+        birth_place (str): 出生地
+        latitude (float): 緯度
+        longitude (float): 経度
+        timezone_offset_input (float): タイムゾーンオフセット
+        years_to_forecast (int, optional): 計算する年数. デフォルトは3年.
+    
+    Returns:
+        list: 各年の進行天体位置情報
+    """
+    swe.set_ephe_path('ephe')
+    tf = TimezoneFinder()
+    timezone_str = tf.timezone_at(lng=longitude, lat=latitude)
+    tz = None
+    if timezone_str:
+        try:
+            tz = pytz.timezone(timezone_str)
+        except pytz.exceptions.UnknownTimeZoneError:
+            tz = timezone(timedelta(hours=timezone_offset_input))
+    else:
+        tz = timezone(timedelta(hours=timezone_offset_input))
+
+    dt_naive = datetime.combine(birth_date, birth_time)
+    if hasattr(tz, 'localize'):
+        dt_aware_birth = tz.localize(dt_naive)
+    else:
+        dt_aware_birth = dt_naive.replace(tzinfo=tz)
+    
+    jd_ut_birth = swe.utc_to_jd(
+        dt_aware_birth.year, dt_aware_birth.month, dt_aware_birth.day,
+        dt_aware_birth.hour, dt_aware_birth.minute, dt_aware_birth.second, 1
+    )[1]
+
+    forecast_data = []
+    current_actual_age = get_current_age(birth_date)
+
+    for i in range(years_to_forecast):
+        # 現在の年齢 + i年後
+        age_for_forecast_year = current_actual_age + i
+        
+        # 二次進行法: 誕生日からage_for_forecast_year日後の天体位置を計算
+        # 1日=1年の法則
+        progressed_jd = jd_ut_birth + age_for_forecast_year
+        
+        yearly_planets_data = []
+        for planet_name in PLANETS_FOR_FORECAST:
+            planet_id = PLANETS[planet_name]
+            
+            # 進行後の天体位置を計算
+            pos, retflag = swe.calc_ut(progressed_jd, planet_id, swe.FLG_SPEED)
+            
+            longitude = pos[0]
+            planet_details = get_planet_details(longitude, planet_name)
+            sabian_symbol = get_sabian_symbol(longitude)
+            
+            yearly_planets_data.append({
+                'name': planet_name,
+                'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
+                'longitude': longitude,
+                'sign': planet_details['sign'],
+                'sign_jp': planet_details['sign_jp'],
+                'degree_in_sign_decimal': planet_details['degree'], 
+                'degree_formatted': planet_details['degree_formatted'],
+                'sabian_symbol': sabian_symbol,
+                'glyph': get_planet_glyph(planet_name),
+                'retrograde': pos[3] < 0  # 逆行情報も追加
+            })
+        
+        # 進行時の日付を計算 (天文学的な日付、実際の誕生日からの進行ではない)
+        progressed_date = jd_to_datetime(progressed_jd)
+        
+        forecast_data.append({
+            'year_offset': i + 1, # 1年目, 2年目, ...
+            'age': age_for_forecast_year, # 予測時の年齢
+            'progressed_date': progressed_date.strftime('%Y-%m-%d'), # 進行日付
+            'planets': yearly_planets_data
+        })
+
+    swe.close()
+    return forecast_data
+
+def jd_to_datetime(jd):
+    """ユリウス日から日時オブジェクトへの変換"""
+    dt_tuple = swe.jdut1_to_utc(jd)
+    return datetime(dt_tuple[0], dt_tuple[1], dt_tuple[2], 
+                  dt_tuple[3], dt_tuple[4], int(dt_tuple[5])) 

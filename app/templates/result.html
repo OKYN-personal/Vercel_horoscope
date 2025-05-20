@@ -350,6 +350,39 @@
         {% endif %}
         {# --- End Solar Arc Sabian Forecast --- #}
 
+        {# --- Secondary Progression Forecast --- #}
+        {% if result.secondary_progression %}
+        <div class="result-section forecast-section" style="margin-top: 2em;">
+            <h2>二次進行法による予測 (直近{{ result.secondary_progression | length }}年間)</h2>
+            {% for yearly_data in result.secondary_progression %}
+                <h3>{{ yearly_data.age }}歳 (進行日: {{ yearly_data.progressed_date }})</h3>
+                <table class="positions-table forecast-table" style="margin-bottom: 1.5em;">
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>逆行</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in yearly_data.planets %}
+                        <tr>
+                            <td>{{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                            <td>{% if planet_data.retrograde %}R{% else %}-{% endif %}</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {# --- End Secondary Progression Forecast --- #}
+
     </div>
 
     {# --- Transit Tab content (only if transit data exists) --- #}
