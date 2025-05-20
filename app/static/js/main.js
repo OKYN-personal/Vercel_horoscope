@@ -1,4 +1,18 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // ナビゲーションバーのトグル機能のサポート
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    if (navbarToggler) {
+        navbarToggler.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            if (targetId) {
+                const target = document.querySelector(targetId);
+                if (target) {
+                    target.classList.toggle('show');
+                }
+            }
+        });
+    }
+    
     const form = document.getElementById('horoscopeForm');
     const errorDiv = document.getElementById('errorDisplay');
     

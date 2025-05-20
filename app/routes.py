@@ -1,19 +1,21 @@
 from flask import Blueprint, render_template, request, jsonify, url_for, current_app
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 # from .utils.horoscope import calculate_planet_positions, get_sabian_symbol
 # from .utils.aspects import calculate_aspects, get_aspect_description
 # from app import create_app # create_appは循環参照になる可能性があるので通常routesからは呼ばない
 from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid, \
     calculate_solar_arc_sabian_forecast, calculate_vernal_equinox_sabian, \
     calculate_summer_solstice_sabian, calculate_autumnal_equinox_sabian, calculate_winter_solstice_sabian, \
-    calculate_secondary_progression # 新しい関数をインポート
+    calculate_secondary_progression, calculate_lunar_nodes, predict_life_events, NODE_INTERPRETATIONS, get_house_number, \
+    calculate_synastry as hs_calculate_synastry # calculate_synastry を hs_calculate_synastry としてインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
 from app.pdf_generator import generate_horoscope_pdf
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
-from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ハウスとアスペクトの解釈もインポート
-from app.utils import get_city_coordinates # 都市座標を取得する関数をインポート
+from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ASPECT_INTERPRETATIONS を追加
+from app.utils import get_city_coordinates # , calculate_timezone_offset # calculate_timezone_offset を一旦コメントアウト
 from app.geocoding import get_coordinates_from_google_maps # Google Maps APIを使う関数をインポート
 import os
+import swisseph as swe # swissephをインポート
 
 bp = Blueprint('main', __name__)
 
@@ -85,6 +87,32 @@ def calculate():
             birth_date, birth_time, birth_place,
             latitude, longitude, timezone_offset, house_system
         )
+
+        # 月のノード（ドラゴンヘッド/テイル）の計算
+        jd_ut = chart_info.get('jd_ut', None)
+        
+        lunar_nodes = None
+        lunar_node_interpretations = {}
+        
+        if jd_ut:
+            # 月のノード計算
+            lunar_nodes = calculate_lunar_nodes(jd_ut)
+            
+            # 月のノードの解釈
+            if 'True_Node' in lunar_nodes and 'sign_jp' in lunar_nodes['True_Node']:
+                sign_jp = lunar_nodes['True_Node']['sign_jp']
+                if sign_jp in NODE_INTERPRETATIONS['True_Node']:
+                    lunar_node_interpretations['True_Node'] = NODE_INTERPRETATIONS['True_Node'][sign_jp]
+            
+            if 'Dragon_Tail' in lunar_nodes and 'sign_jp' in lunar_nodes['Dragon_Tail']:
+                sign_jp = lunar_nodes['Dragon_Tail']['sign_jp']
+                if sign_jp in NODE_INTERPRETATIONS['Dragon_Tail']:
+                    lunar_node_interpretations['Dragon_Tail'] = NODE_INTERPRETATIONS['Dragon_Tail'][sign_jp]
+            
+            # ネイタルポジションに月のノードを追加
+            if lunar_nodes:
+                for node_name, node_data in lunar_nodes.items():
+                    natal_positions[node_name] = node_data
 
         # ネイタルアスペクトの計算
         natal_aspects = calculate_aspects(natal_positions) # positions1 のみ渡す
@@ -183,6 +211,8 @@ def calculate():
                         'text': interp_text,
                         'is_major': is_major_aspect # is_major フラグを追加
                     })
+
+        current_app.logger.debug(f"Constructed interpretations: {interpretations}") # ★デバッグログ追加
 
         # トランジットの計算（指定がある場合）
         transit_positions = None
@@ -290,15 +320,29 @@ def calculate():
 
         # --- 年間イベントのサビアンシンボル計算 (現在の年を使用) ---
         current_year = datetime.now().year
-        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
-            birth_date, birth_time, birth_place,
-            latitude, longitude, timezone_offset
-        )
-        vernal_equinox_sabian = calculate_vernal_equinox_sabian(current_year)
-        summer_solstice_sabian = calculate_summer_solstice_sabian(current_year)
-        autumnal_equinox_sabian = calculate_autumnal_equinox_sabian(current_year)
-        winter_solstice_sabian = calculate_winter_solstice_sabian(current_year)
+        # solar_arc_forecast の再計算は、必要に応じて行う。ここでは natal_positions を使った初期計算を流用。
+        # solar_arc_forecast = calculate_solar_arc_sabian_forecast(
+        #     birth_date, birth_time, birth_place,
+        #     latitude, longitude, timezone_offset
+        # )
+        vernal_equinox_sabian_current = calculate_vernal_equinox_sabian(current_year)
+        summer_solstice_sabian_current = calculate_summer_solstice_sabian(current_year)
+        autumnal_equinox_sabian_current = calculate_autumnal_equinox_sabian(current_year)
+        winter_solstice_sabian_current = calculate_winter_solstice_sabian(current_year)
         # --- ここまで年間イベント計算 ---
+
+        # equinox_data の定義 (テンプレートで使用)
+        equinox_data = {
+            'vernal': vernal_equinox_sabian_current,
+            'summer': summer_solstice_sabian_current,
+            'autumnal': autumnal_equinox_sabian_current,
+            'winter': winter_solstice_sabian_current,
+            'year': current_year
+        }
+
+        # ライフイベント予測の生成
+        forecast_years = int(request.form.get('forecast_years', 3))
+        life_events = predict_life_events(natal_positions, forecast_years)
 
         # PDFの生成（結果データに含める前に生成）
         # PDF生成関数に渡すデータ構造を一時的に作成
@@ -325,7 +369,9 @@ def calculate():
             'summer_solstice_sabian': summer_solstice_sabian, # PDFに追加
             'autumnal_equinox_sabian': autumnal_equinox_sabian, # PDFに追加
             'winter_solstice_sabian': winter_solstice_sabian, # PDFに追加
-            'current_year_for_seasonal': current_year # PDFに年も渡す (キー名を変更)
+            'current_year_for_seasonal': current_year, # PDFに年も渡す (キー名を変更)
+            'forecast_years': forecast_years,
+            'life_events': life_events
         }
         if transit_positions:
             pdf_result_data['transit'] = {
@@ -339,52 +385,47 @@ def calculate():
         pdf_filename = generate_horoscope_pdf(pdf_result_data) # PDF生成実行
         pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
 
-        # テンプレートに渡す結果データの作成
-        result_data = {
-            'birth_date': birth_date.strftime('%Y-%m-%d'),
-            'birth_time': birth_time.strftime('%H:%M'),
+        # テンプレートに変数を渡して結果ページをレンダリング
+        result_data_for_template = {
+            'birth_date': birth_date.strftime('%Y-%m-%d'), # 文字列に変換
+            'birth_time': birth_time.strftime('%H:%M'), # 文字列に変換
             'birth_place': birth_place,
-            'natal': {
+            'location_source': location_source,
+            'location_warning': location_warning if 'location_warning' in locals() else False,
+            'natal': { # ネイタル情報を 'natal' キーの下にまとめる
                 'positions': natal_positions,
-                'aspects': natal_aspects,
-                'sabian': natal_sabian,
                 'latitude': latitude,
                 'longitude': longitude,
-                'location_source': location_source,
-                'location_warning': location_warning if 'location_warning' in locals() else False,
-                **chart_info
+                'chart_info': chart_info,
+                'sabian': natal_sabian if 'natal_sabian' in locals() else None,
+                'aspect_grid': aspect_grid_data,
+                'interpretations': interpretations if 'interpretations' in locals() else None,
+                'lunar_nodes': lunar_nodes, # 月のノードも natal に含めるか検討 (PDF構造に合わせるか)
+                'lunar_node_interpretations': lunar_node_interpretations # 同上
             },
-            'aspect_grid': aspect_grid_data,
-            'chart_svg': chart_svg, 
-            'pdf_url': pdf_url, 
-            'interpretations': interpretations, 
-            'solar_arc_forecast': solar_arc_forecast, 
-            'secondary_progression': secondary_progression, # 二次進行法のデータを追加
-            'vernal_equinox_sabian': vernal_equinox_sabian, 
-            'summer_solstice_sabian': summer_solstice_sabian, 
-            'autumnal_equinox_sabian': autumnal_equinox_sabian, 
-            'winter_solstice_sabian': winter_solstice_sabian, 
-            'current_year_for_seasonal': current_year # HTMLに年も渡す (キー名を変更)
+            'transit': { # トランジット情報も 'transit' キーの下にまとめる
+                'positions': transit_positions if 'transit_positions' in locals() else None,
+                'date_str': transit_date.strftime('%Y-%m-%d %H:%M') if transit_date else None, # transit_date を文字列に
+                'aspects': transit_aspects if 'transit_aspects' in locals() else None,
+                'sabian': transit_sabian if 'transit_sabian' in locals() else None,
+                'aspect_interpretations': transit_aspect_interpretations if 'transit_aspect_interpretations' in locals() else None,
+            },
+            'chart_svg': chart_svg, # chart_svg は natal の外のままにするか検討 (result.html の現状に合わせる)
+            'progression_data': secondary_progression if 'secondary_progression' in locals() else None,
+            'equinox_data': equinox_data,
+            'life_events': life_events,
+            'forecast_years': forecast_years,
+            'pdf_url': pdf_url
         }
-        
-        if transit_positions:
-            result_data['transit'] = {
-                'positions': transit_positions,
-                'aspects': transit_aspects, 
-                'aspect_interpretations': transit_aspect_interpretations, 
-                'sabian': transit_sabian
-            }
-            result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
-        
-        # HTMLをレンダリングして返す
-        return render_template('result.html', result=result_data)
-        
+
+        current_app.logger.debug(f"Data passed to template result: {result_data_for_template['natal']['interpretations']}") # ★デバッグログ追加
+
+        return render_template('result.html', result=result_data_for_template)
     except Exception as e:
+        current_app.logger.error(f"Error in /calculate: ExceptionType={type(e).__name__}, ErrorMessage={repr(e)}")
         import traceback
-        traceback.print_exc() # エラー詳細をコンソールに表示
-        # エラー時はエラーページを表示するか、JSONで返すか選択
-        # ここでは例としてJSONでエラーを返す
-        return jsonify({'success': False, 'error': str(e)}), 400 
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp.route('/synastry', methods=['GET'])
 def synastry_form():
@@ -417,6 +458,8 @@ def calculate_synastry():
         # 緯度経度の取得（人物1）
         latitude1 = None
         longitude1 = None
+        location_source1 = 'unknown' # 初期化
+        location_warning1 = True # 初期化
         if 'latitude1' in request.form and 'longitude1' in request.form and request.form['latitude1'] and request.form['longitude1']:
             # 手動入力された値を使用
             try:
@@ -428,27 +471,29 @@ def calculate_synastry():
                 # 形式エラー
                 location_source1 = 'error'
                 location_warning1 = True
-        else:
-            # 地名から緯度経度を取得
-            try:
-                geocode_result = get_geocode_from_place_name(birth_place1)
-                if geocode_result:
-                    latitude1, longitude1 = geocode_result
-                    location_source1 = 'geocode'
-                    location_warning1 = False
-                else:
-                    # ジオコーディング失敗
-                    location_source1 = 'error'
-                    location_warning1 = True
-            except Exception as e:
-                # ジオコーディングAPI例外
-                location_source1 = 'error'
-                location_warning1 = True
-                print(f"Geocoding error for {birth_place1}: {e}")
+        # else:
+            # 地名から緯度経度を取得 (get_geocode_from_place_name は未定義の可能性)
+            # try:
+            #     geocode_result = get_geocode_from_place_name(birth_place1)
+            #     if geocode_result:
+            #         latitude1, longitude1 = geocode_result
+            #         location_source1 = 'geocode'
+            #         location_warning1 = False
+            #     else:
+            #         # ジオコーディング失敗
+            #         location_source1 = 'error'
+            #         location_warning1 = True
+            # except Exception as e:
+            #     # ジオコーディングAPI例外
+            #     location_source1 = 'error'
+            #     location_warning1 = True
+            #     print(f"Geocoding error for {birth_place1}: {e}")
 
         # 緯度経度の取得（人物2）
         latitude2 = None
         longitude2 = None
+        location_source2 = 'unknown' # 初期化
+        location_warning2 = True # 初期化
         if 'latitude2' in request.form and 'longitude2' in request.form and request.form['latitude2'] and request.form['longitude2']:
             # 手動入力された値を使用
             try:
@@ -460,69 +505,80 @@ def calculate_synastry():
                 # 形式エラー
                 location_source2 = 'error'
                 location_warning2 = True
-        else:
-            # 地名から緯度経度を取得
-            try:
-                geocode_result = get_geocode_from_place_name(birth_place2)
-                if geocode_result:
-                    latitude2, longitude2 = geocode_result
-                    location_source2 = 'geocode'
-                    location_warning2 = False
-                else:
-                    # ジオコーディング失敗
-                    location_source2 = 'error'
-                    location_warning2 = True
-            except Exception as e:
-                # ジオコーディングAPI例外
-                location_source2 = 'error'
-                location_warning2 = True
-                print(f"Geocoding error for {birth_place2}: {e}")
+        # else:
+            # 地名から緯度経度を取得 (get_geocode_from_place_name は未定義の可能性)
+            # try:
+            #     geocode_result = get_geocode_from_place_name(birth_place2)
+            #     if geocode_result:
+            #         latitude2, longitude2 = geocode_result
+            #         location_source2 = 'geocode'
+            #         location_warning2 = False
+            #     else:
+            #         # ジオコーディング失敗
+            #         location_source2 = 'error'
+            #         location_warning2 = True
+            # except Exception as e:
+            #     # ジオコーディングAPI例外
+            #     location_source2 = 'error'
+            #     location_warning2 = True
+            #     print(f"Geocoding error for {birth_place2}: {e}")
 
         # タイムゾーンオフセットを計算（人物1と人物2）
-        timezone_offset1 = calculate_timezone_offset(birth_date1, latitude1, longitude1)
-        timezone_offset2 = calculate_timezone_offset(birth_date2, latitude2, longitude2)
+        # timezone_offset1 = calculate_timezone_offset(birth_date1, latitude1, longitude1) # 一旦コメントアウト
+        # timezone_offset2 = calculate_timezone_offset(birth_date2, latitude2, longitude2) # 一旦コメントアウト
+        timezone_offset1 = 9.0 # 仮の値
+        timezone_offset2 = 9.0 # 仮の値
         
         # ホロスコープ計算（人物1）
         chart_info1 = {}
-        natal_positions1, house_cusps1, asc1, mc1 = calculate_natal_chart(
-            birth_date1, birth_time1, latitude1, longitude1, timezone_offset1
+        natal_positions1, chart_info1_returned, natal_cusps1 = calculate_natal_chart(
+            birth_date1, birth_time1, birth_place1, latitude1, longitude1, timezone_offset1, house_system=b'P'
         )
-        chart_info1['house_system'] = 'Placidus'
-        chart_info1['ascendant'] = asc1
-        chart_info1['midheaven'] = mc1
-        chart_info1['house_cusps'] = house_cusps1
+        # chart_info1 に戻り値をマージするか、必要な情報を取り出す
+        chart_info1.update(chart_info1_returned) # 仮に chart_info_returned が辞書であると想定
+        asc1 = chart_info1.get('ascendant') # chart_info から asc を取得
+        mc1 = chart_info1.get('midheaven') # chart_info から mc を取得
+
+        # chart_info1['house_system'] = 'Placidus' # これは calculate_natal_chart の戻り値 (chart_info1_returned) に含まれる想定
+        # chart_info1['ascendant'] = asc1 # 上で取得するので不要
+        # chart_info1['midheaven'] = mc1 # 上で取得するので不要
+        chart_info1['house_cusps'] = natal_cusps1 # ハウスカスプを設定
 
         # ハウス番号の設定（人物1）
         for planet_name, pos_data in natal_positions1.items():
-            pos_data['house'] = get_house_number(pos_data['longitude'], house_cusps1)
+            pos_data['house'] = get_house_number(pos_data['longitude'], chart_info1['house_cusps'])
         
         # ネイタルアスペクトの計算（人物1）
         natal_aspects1 = calculate_aspects(natal_positions1)
 
         # ホロスコープ計算（人物2）
         chart_info2 = {}
-        natal_positions2, house_cusps2, asc2, mc2 = calculate_natal_chart(
-            birth_date2, birth_time2, latitude2, longitude2, timezone_offset2
+        natal_positions2, chart_info2_returned, natal_cusps2 = calculate_natal_chart(
+            birth_date2, birth_time2, birth_place2, latitude2, longitude2, timezone_offset2, house_system=b'P'
         )
-        chart_info2['house_system'] = 'Placidus'
-        chart_info2['ascendant'] = asc2
-        chart_info2['midheaven'] = mc2
-        chart_info2['house_cusps'] = house_cusps2
+        chart_info2.update(chart_info2_returned)
+        asc2 = chart_info2.get('ascendant')
+        mc2 = chart_info2.get('midheaven')
+        
+        # chart_info2['house_system'] = 'Placidus' # 同上
+        # chart_info2['ascendant'] = asc2 # 上で取得するので不要
+        # chart_info2['midheaven'] = mc2 # 上で取得するので不要
+        chart_info2['house_cusps'] = natal_cusps2 # ハウスカスプを設定
 
         # ハウス番号の設定（人物2）
         for planet_name, pos_data in natal_positions2.items():
-            pos_data['house'] = get_house_number(pos_data['longitude'], house_cusps2)
+            pos_data['house'] = get_house_number(pos_data['longitude'], chart_info2['house_cusps'])
             
         # ネイタルアスペクトの計算（人物2）
         natal_aspects2 = calculate_aspects(natal_positions2)
 
         # アスペクトグリッドの生成（人物1と人物2）
-        aspect_grid_data1 = get_aspect_grid(natal_positions1, natal_aspects1)
-        aspect_grid_data2 = get_aspect_grid(natal_positions2, natal_aspects2)
+        aspect_grid_data1 = generate_aspect_grid(natal_aspects1, list(natal_positions1.keys()))
+        aspect_grid_data2 = generate_aspect_grid(natal_aspects2, list(natal_positions2.keys()))
 
         # チャート画像（SVG）の生成（人物1と人物2）
-        chart_svg1 = generate_chart_svg(natal_positions1, house_cusps1)
-        chart_svg2 = generate_chart_svg(natal_positions2, house_cusps2)
+        chart_svg1 = generate_chart_svg(natal_positions1, chart_info1['house_cusps'], natal_aspects1, chart_info1)
+        chart_svg2 = generate_chart_svg(natal_positions2, chart_info2['house_cusps'], natal_aspects2, chart_info2)
 
         # サビアンシンボルの取得（人物1と人物2）
         natal_sabian1 = {}
@@ -566,7 +622,7 @@ def calculate_synastry():
         }
 
         # シナストリー計算
-        synastry_data = calculate_synastry(person1_data, person2_data)
+        synastry_data = hs_calculate_synastry(person1_data, person2_data)
 
         # シナストリーアスペクト解釈を取得
         synastry_aspect_interpretations = []
@@ -584,7 +640,8 @@ def calculate_synastry():
                 if p1 and p2 and aspect_type:
                     # シナストリーアスペクト解釈のキーを作成（順序考慮）
                     interp_key = f"{p1}_{p2}_{aspect_type.lower()}_synastry"
-                    interp_text = get_interpretation_text(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）")
+                    # interp_text = get_interpretation_text(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）") # 古い呼び出しをコメントアウト
+                    interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）の解釈は準備中です。") # ASPECT_INTERPRETATIONS から直接取得
                     
                     # 主要アスペクトかどうかを判定
                     MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
@@ -602,25 +659,58 @@ def calculate_synastry():
                     })
 
         # 合成図のチャート生成
-        composite_chart_svg = generate_chart_svg(synastry_data['composite_positions'], house_cusps1)
+        composite_chart_svg = generate_chart_svg(synastry_data['composite_positions'], chart_info1['house_cusps'], synastry_data['composite_aspects'], {'house_system': 'Placidus'})
 
         # 相性度（単純なスコア）の計算
         # ハードアスペクト（60点）、ソフトアスペクト（40点）で計算
-        compatibility_score = 0
+        compatibility_score = 50 # 基本点数を50点とする
         max_score = 100
+        min_score = 0
         
-        HARD_ASPECTS = ['Conjunction', 'Opposition', 'Square']
-        SOFT_ASPECTS = ['Trine', 'Sextile']
-        
+        # IMPORTANT_PLANETS_FOR_SYNASTRY = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Asc', 'MC'] # 修正案１：対象天体を限定
+        # 対象天体リスト（より相性で重視されるもの）
+        PRIMARY_TARGETS = ['Sun', 'Moon', 'Venus', 'Mars', 'Asc', 'MC']
+        SECONDARY_TARGETS = ['Mercury', 'Jupiter', 'Saturn']
+
         for aspect in synastry_data['synastry_aspects']:
+            p1 = aspect.get('person1_planet')
+            p2 = aspect.get('person2_planet')
             aspect_type = aspect.get('aspect_type')
-            if aspect_type in HARD_ASPECTS:
-                compatibility_score += 6  # ハードアスペクトは重み大
-            elif aspect_type in SOFT_ASPECTS:
-                compatibility_score += 4  # ソフトアスペクトは重み小
+            orb = aspect.get('orb', 5) # オーブが取得できない場合はデフォルト5度とする
+
+            # 両方の天体が評価対象に含まれるか、または主要天体同士か
+            is_primary_aspect = (p1 in PRIMARY_TARGETS and p2 in PRIMARY_TARGETS)
+            # is_secondary_aspect = (p1 in PRIMARY_TARGETS and p2 in SECONDARY_TARGETS) or \
+            #                       (p1 in SECONDARY_TARGETS and p2 in PRIMARY_TARGETS)
+
+            # 主要天体同士のアスペクトを重視
+            point_modifier = 1.0
+            if is_primary_aspect:
+                point_modifier = 1.2 # 主要天体同士は1.2倍の重み (前回1.5倍)
+
+            # オーブによる調整 (タイトなほど影響大)
+            orb_modifier = 1.0
+            if orb <= 2: # オーブ2度以下は影響大
+                orb_modifier = 1.1 # 前回1.2倍
+            elif orb > 5: # オーブ5度より大きい場合は影響小
+                orb_modifier = 0.9 # 前回0.8倍
+
+            base_point = 0
+            if aspect_type == 'Conjunction':
+                if (p1 in ['Sun', 'Moon', 'Venus', 'Mars'] and p2 in ['Sun', 'Moon', 'Venus', 'Mars']):
+                    base_point = 15 # 前回20点
+                else:
+                    base_point = 10 # 前回15点
+            elif aspect_type == 'Trine' or aspect_type == 'Sextile':
+                base_point = 7  # 前回10点
+            elif aspect_type == 'Square' or aspect_type == 'Opposition':
+                base_point = -12 # 前回-10点 (減点幅をさらに大きく)
+            
+            compatibility_score += base_point * point_modifier * orb_modifier
         
-        # 上限を100点に
-        compatibility_score = min(compatibility_score, max_score)
+        # スコアを0-100の範囲に収める
+        compatibility_score = max(min_score, min(compatibility_score, max_score))
+        compatibility_score = round(compatibility_score) # 整数に丸める
 
         # 結果データの作成
         result_data = {
@@ -676,3 +766,194 @@ def calculate_synastry():
         traceback.print_exc() # エラー詳細をコンソールに表示
         # エラー時はエラーページを表示するか、JSONで返すか選択
         return jsonify({'success': False, 'error': str(e)}), 400 
+
+# 新しいエンドポイント: 月のノード専用ページ
+@bp.route('/lunar_nodes', methods=['GET'])
+def lunar_nodes_form():
+    """月のノード（ドラゴンヘッド/テイル）計算フォームを表示"""
+    # Google Maps APIキーをテンプレートに渡す
+    google_maps_api_key = current_app.config.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('lunar_nodes_form.html', google_maps_api_key=google_maps_api_key)
+
+@bp.route('/calculate_lunar_nodes', methods=['POST'])
+def calculate_lunar_nodes_endpoint():
+    """月のノード（ドラゴンヘッド/テイル）の計算と解釈を行う"""
+    try:
+        # フォームデータを取得 (HTMLのname属性に合わせる)
+        birth_date = datetime.strptime(request.form['birth_date'], '%Y-%m-%d').date()
+        birth_time = datetime.strptime(request.form['birth_time'], '%H:%M').time()
+        birth_place = request.form['birth_place']
+        
+        # 緯度経度が手動入力されているか確認
+        manual_latitude = request.form.get('latitude')
+        manual_longitude = request.form.get('longitude')
+        
+        # 手動入力された緯度経度を使用
+        if manual_latitude and manual_longitude:
+            try:
+                latitude = float(manual_latitude)
+                longitude = float(manual_longitude)
+                location_source = '手動入力'
+            except ValueError:
+                return jsonify({
+                    'success': False, 
+                    'error': '緯度経度の形式が正しくありません。数値を入力してください。'
+                }), 400
+        else:
+            # 地名から緯度経度を取得
+            latitude, longitude, location_found = get_city_coordinates(birth_place)
+            
+            if location_found:
+                location_source = f'地名データベース（{birth_place}）'
+            
+            # 地名が見つからない場合、Google Maps APIを試す
+            if not location_found:
+                # APIキーが設定されているか確認し、APIを呼び出す
+                api_key = current_app.config.get('GOOGLE_MAPS_API_KEY')
+                if api_key:
+                    google_lat, google_lng, google_found = get_coordinates_from_google_maps(birth_place, api_key)
+                    if google_found:
+                        latitude = google_lat
+                        longitude = google_lng
+                        location_found = True
+                        location_source = f'Google Maps API（{birth_place}）'
+            
+            # それでも地名が見つからない場合
+            if not location_found:
+                # デフォルト値（東京）を使用
+                latitude = 35.6895
+                longitude = 139.6917
+                location_source = 'デフォルト（東京）'
+                # フラグを設定して、結果ページでアラートを表示
+                location_warning = True
+            else:
+                location_warning = False
+        
+        timezone_offset = 9.0 # 日本標準時
+        
+        # 出生時のユリウス日を計算
+        dt_naive = datetime.combine(birth_date, birth_time)
+        tz = timezone(timedelta(hours=timezone_offset))
+        dt_aware = dt_naive.replace(tzinfo=tz)
+        dt_utc = dt_aware.astimezone(timezone.utc)
+        jd_ut = swe.utc_to_jd(dt_utc.year, dt_utc.month, dt_utc.day,
+                            dt_utc.hour, dt_utc.minute, dt_utc.second, 1)[1]
+        
+        # 月のノードを計算
+        lunar_nodes = calculate_lunar_nodes(jd_ut)
+        
+        # 月のノードの解釈
+        lunar_node_interpretations = {}
+        
+        if 'True_Node' in lunar_nodes and 'sign_jp' in lunar_nodes['True_Node']:
+            sign_jp = lunar_nodes['True_Node']['sign_jp']
+            if sign_jp in NODE_INTERPRETATIONS['True_Node']:
+                lunar_node_interpretations['True_Node'] = NODE_INTERPRETATIONS['True_Node'][sign_jp]
+        
+        if 'Dragon_Tail' in lunar_nodes and 'sign_jp' in lunar_nodes['Dragon_Tail']:
+            sign_jp = lunar_nodes['Dragon_Tail']['sign_jp']
+            if sign_jp in NODE_INTERPRETATIONS['Dragon_Tail']:
+                lunar_node_interpretations['Dragon_Tail'] = NODE_INTERPRETATIONS['Dragon_Tail'][sign_jp]
+        
+        # テンプレートに変数を渡して結果ページをレンダリング
+        return render_template('lunar_nodes_result.html', 
+                              birth_date=birth_date,
+                              birth_time=birth_time,
+                              birth_place=birth_place,
+                              latitude=latitude,
+                              longitude=longitude,
+                              location_source=location_source,
+                              location_warning=location_warning if 'location_warning' in locals() else False,
+                              lunar_nodes=lunar_nodes,
+                              lunar_node_interpretations=lunar_node_interpretations)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# 新しいエンドポイント: ライフイベント予測専用ページ
+@bp.route('/life_events', methods=['GET'])
+def life_events_form():
+    """ライフイベント予測フォームを表示"""
+    # Google Maps APIキーをテンプレートに渡す
+    google_maps_api_key = current_app.config.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('life_events_form.html', google_maps_api_key=google_maps_api_key)
+
+@bp.route('/predict_life_events', methods=['POST'])
+def predict_life_events_endpoint():
+    """ライフイベント予測を行う"""
+    try:
+        # フォームデータを取得 (HTMLのname属性に合わせる)
+        birth_date = datetime.strptime(request.form['birth_date'], '%Y-%m-%d').date()
+        birth_time = datetime.strptime(request.form['birth_time'], '%H:%M').time()
+        birth_place = request.form['birth_place']
+        forecast_years = int(request.form.get('event_duration_years', 5)) # HTMLのname属性に合わせる
+        
+        # 緯度経度が手動入力されているか確認
+        manual_latitude = request.form.get('latitude')
+        manual_longitude = request.form.get('longitude')
+        
+        # 手動入力された緯度経度を使用
+        if manual_latitude and manual_longitude:
+            try:
+                latitude = float(manual_latitude)
+                longitude = float(manual_longitude)
+                location_source = '手動入力'
+            except ValueError:
+                return jsonify({
+                    'success': False, 
+                    'error': '緯度経度の形式が正しくありません。数値を入力してください。'
+                }), 400
+        else:
+            # 地名から緯度経度を取得
+            latitude, longitude, location_found = get_city_coordinates(birth_place)
+            
+            if location_found:
+                location_source = f'地名データベース（{birth_place}）'
+            
+            # 地名が見つからない場合、Google Maps APIを試す
+            if not location_found:
+                # APIキーが設定されているか確認し、APIを呼び出す
+                api_key = current_app.config.get('GOOGLE_MAPS_API_KEY')
+                if api_key:
+                    google_lat, google_lng, google_found = get_coordinates_from_google_maps(birth_place, api_key)
+                    if google_found:
+                        latitude = google_lat
+                        longitude = google_lng
+                        location_found = True
+                        location_source = f'Google Maps API（{birth_place}）'
+            
+            # それでも地名が見つからない場合
+            if not location_found:
+                # デフォルト値（東京）を使用
+                latitude = 35.6895
+                longitude = 139.6917
+                location_source = 'デフォルト（東京）'
+                # フラグを設定して、結果ページでアラートを表示
+                location_warning = True
+            else:
+                location_warning = False
+        
+        timezone_offset = 9.0 # 日本標準時
+        house_system = b'P' # Placidus
+        
+        # ネイタルチャートの計算
+        natal_positions, chart_info, natal_cusps = calculate_natal_chart(
+            birth_date, birth_time, birth_place,
+            latitude, longitude, timezone_offset, house_system
+        )
+        
+        # ライフイベント予測
+        life_events = predict_life_events(natal_positions, forecast_years)
+        
+        # テンプレートに変数を渡して結果ページをレンダリング
+        return render_template('life_events_result.html', 
+                              birth_date=birth_date,
+                              birth_time=birth_time,
+                              birth_place=birth_place,
+                              latitude=latitude,
+                              longitude=longitude,
+                              location_source=location_source,
+                              location_warning=location_warning if 'location_warning' in locals() else False,
+                              forecast_years=forecast_years,
+                              life_events=life_events)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500 

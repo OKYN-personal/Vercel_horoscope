@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 PLANETS = {
     'Sun': swe.SUN, 'Moon': swe.MOON, 'Mercury': swe.MERCURY, 'Venus': swe.VENUS,
     'Mars': swe.MARS, 'Jupiter': swe.JUPITER, 'Saturn': swe.SATURN,
-    'Uranus': swe.URANUS, 'Neptune': swe.NEPTUNE, 'Pluto': swe.PLUTO
+    'Uranus': swe.URANUS, 'Neptune': swe.NEPTUNE, 'Pluto': swe.PLUTO,
+    'True_Node': swe.TRUE_NODE, 'Mean_Node': swe.MEAN_NODE  # 月のノード追加
 }
 POINTS = {'Asc': 0, 'MC': 1} # swe.houses_ex() の戻り値 ascmc のインデックスに対応
 
@@ -26,7 +27,8 @@ SIGN_JP = [
 PLANET_GLYPHS = {
     'Sun': '☉', 'Moon': '☽', 'Mercury': '☿', 'Venus': '♀', 'Mars': '♂',
     'Jupiter': '♃', 'Saturn': '♄', 'Uranus': '♅', 'Neptune': '♆', 'Pluto': '♇',
-    'Asc': 'Asc', 'MC': 'MC'
+    'Asc': 'Asc', 'MC': 'MC',
+    'True_Node': '☊', 'Mean_Node': '☊'  # ドラゴンヘッド
 }
 ASPECT_GLYPHS = {
     'Conjunction': '☌', 'Sextile': '∗', 'Square': '□', 'Trine': '△', 'Opposition': '☍'
@@ -53,11 +55,12 @@ PLANET_NAMES_JP = {
     'Pluto': '冥王星',
     'Asc': 'ASC',
     'MC': 'MC',
-    'True Node': 'ﾄﾞﾗｺﾞﾝﾍｯﾄﾞ',
+    'True_Node': 'ドラゴンヘッド',
+    'Mean_Node': 'ミーンノード',
 }
 
-# 予測などで使用する主要な天体リスト
-PLANETS_FOR_FORECAST = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto']
+# 予測などで使用する主要な天体リスト（月のノード追加）
+PLANETS_FOR_FORECAST = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'True_Node']
 
 def format_degree(degree_within_sign):
     """サイン内度数を度分形式に変換"""
@@ -166,7 +169,7 @@ def calculate_natal_chart(birth_date, birth_time, birth_place, latitude, longitu
     for name, planet_id in PLANETS.items():
         pos, retflag = swe.calc_ut(jd_ut, planet_id, swe.FLG_SPEED)
         # pos[0] は 黄経全体
-        sign_jp_calc, sign_degree_within_sign = get_sign(pos[0]) # サイン名とサイン内度数を取得
+        sign_jp_calc, sign_degree_within_sign = get_sign(pos[0])
         positions[name] = {
             'longitude': pos[0],
             'speed': pos[3],
@@ -871,3 +874,230 @@ def calculate_synastry(person1_data, person2_data):
         'composite_positions': composite_positions,
         'composite_aspects': composite_aspects
     } 
+
+# 新しい関数：月のノード（ドラゴンヘッド/テイル）の位置を計算
+def calculate_lunar_nodes(jd_ut):
+    """
+    月のノード（ドラゴンヘッド/テイル）の位置を計算する
+    
+    Args:
+        jd_ut (float): ユリウス日（UT）
+    
+    Returns:
+        dict: 月のノード情報を含む辞書
+    """
+    swe.set_ephe_path('ephe')
+    
+    nodes = {}
+    
+    # ドラゴンヘッド (True Node)
+    true_node_pos, retflag = swe.calc_ut(jd_ut, swe.TRUE_NODE, swe.FLG_SPEED)
+    sign_jp_calc, sign_degree_within_sign = get_sign(true_node_pos[0])
+    nodes['True_Node'] = {
+        'longitude': true_node_pos[0],
+        'speed': true_node_pos[3],
+        'sign': signs[int(true_node_pos[0] // 30)],
+        'sign_jp': sign_jp_calc,
+        'degree': sign_degree_within_sign,
+        'degree_formatted': format_degree(sign_degree_within_sign),
+        'glyph': get_planet_glyph('True_Node'),
+        'name_jp': PLANET_NAMES_JP.get('True_Node', 'True_Node'),
+        'retrograde': true_node_pos[3] < 0
+    }
+    
+    # ミーンノード (Mean Node)
+    mean_node_pos, retflag = swe.calc_ut(jd_ut, swe.MEAN_NODE, swe.FLG_SPEED)
+    sign_jp_calc, sign_degree_within_sign = get_sign(mean_node_pos[0])
+    nodes['Mean_Node'] = {
+        'longitude': mean_node_pos[0],
+        'speed': mean_node_pos[3],
+        'sign': signs[int(mean_node_pos[0] // 30)],
+        'sign_jp': sign_jp_calc,
+        'degree': sign_degree_within_sign,
+        'degree_formatted': format_degree(sign_degree_within_sign),
+        'glyph': get_planet_glyph('Mean_Node'),
+        'name_jp': PLANET_NAMES_JP.get('Mean_Node', 'Mean_Node'),
+        'retrograde': mean_node_pos[3] < 0
+    }
+    
+    # ドラゴンテイル（ケツ）の計算 - ドラゴンヘッドから180度反対側
+    tail_longitude = (nodes['True_Node']['longitude'] + 180) % 360
+    sign_jp_calc, sign_degree_within_sign = get_sign(tail_longitude)
+    nodes['Dragon_Tail'] = {
+        'longitude': tail_longitude,
+        'speed': nodes['True_Node']['speed'], # ヘッドと同じ速度
+        'sign': signs[int(tail_longitude // 30)],
+        'sign_jp': sign_jp_calc,
+        'degree': sign_degree_within_sign,
+        'degree_formatted': format_degree(sign_degree_within_sign),
+        'glyph': '☋',  # ドラゴンテイル（ケツ）の記号
+        'name_jp': 'ドラゴンテイル'
+    }
+    
+    return nodes
+
+# 月のノードの解釈文データ
+NODE_INTERPRETATIONS = {
+    'True_Node': {
+        "牡羊座": "ドラゴンヘッドが牡羊座にあることは、あなたが魂の成長において個人的なアイデンティティ、自己主張、そして新しいスタートを経験する必要があることを示しています。人生での使命は、勇気を持って自分自身を表現し、リーダーシップを発揮することです。前世では他者に依存しすぎていたかもしれず、このライフではより独立的になることが魂の課題となっています。",
+        "牡牛座": "ドラゴンヘッドが牡牛座にあることは、あなたが魂の成長において物質的な安定、価値観の確立、そして感覚的な喜びを経験する必要があることを示しています。人生での使命は、忍耐と決意を持って実質的な成果を築き上げることです。前世では物質に執着しすぎなかったかもしれず、このライフでは地に足をつけた安定感を得ることが魂の課題となっています。",
+        "双子座": "ドラゴンヘッドが双子座にあることは、あなたが魂の成長においてコミュニケーション、知的好奇心、そして多様性を経験する必要があることを示しています。人生での使命は、情報を収集し、共有し、さまざまな視点から物事を見ることです。前世では深く掘り下げることなく表面的な知識に留まっていたかもしれず、このライフではより詳細に学ぶことが魂の課題となっています。",
+        "蟹座": "ドラゴンヘッドが蟹座にあることは、あなたが魂の成長において感情的なつながり、家族、そして内なる安全を経験する必要があることを示しています。人生での使命は、深い感情的な絆を育み、自分の感情を完全に受け入れることです。前世では感情を抑制しすぎていたかもしれず、このライフではより感情的に開かれることが魂の課題となっています。",
+        "獅子座": "ドラゴンヘッドが獅子座にあることは、あなたが魂の成長において創造的な自己表現、情熱、そして本物の自己を経験する必要があることを示しています。人生での使命は、自分の創造力を通じて喜びと愛を世界に広めることです。前世では背景に留まりすぎていたかもしれず、このライフではより中心的な役割を果たすことが魂の課題となっています。",
+        "乙女座": "ドラゴンヘッドが乙女座にあることは、あなたが魂の成長において実用的なスキル、分析能力、そして健康的な生活習慣を経験する必要があることを示しています。人生での使命は、細部に注意を払い、日常生活で秩序と効率を確立することです。前世では大きな絵を見るのに忙しすぎて詳細を見逃していたかもしれず、このライフではより実用的になることが魂の課題となっています。",
+        "天秤座": "ドラゴンヘッドが天秤座にあることは、あなたが魂の成長において関係性、調和、そして公平さを経験する必要があることを示しています。人生での使命は、バランスを見つけ、パートナーシップを通じて成長することです。前世では自分自身に焦点を当てすぎていたかもしれず、このライフではより他者との相互作用に重点を置くことが魂の課題となっています。",
+        "蠍座": "ドラゴンヘッドが蠍座にあることは、あなたが魂の成長において変容、共有資源、そして深い親密さを経験する必要があることを示しています。人生での使命は、魂の深みを探求し、強力な癒しの変容を経験することです。前世では表面的な関係に留まりすぎていたかもしれず、このライフではより深いレベルで自分自身と他者を理解することが魂の課題となっています。",
+        "射手座": "ドラゴンヘッドが射手座にあることは、あなたが魂の成長において高等教育、旅行、そして形而上学的な真理を経験する必要があることを示しています。人生での使命は、より広い視野を持ち、信念体系を拡大することです。前世では狭い視野に囚われすぎていたかもしれず、このライフではより広い視点を持つことが魂の課題となっています。",
+        "山羊座": "ドラゴンヘッドが山羊座にあることは、あなたが魂の成長において構造、権威、そして長期的な成功を経験する必要があることを示しています。人生での使命は、責任を持ち、社会的な貢献を通じて成長することです。前世では責任を避けすぎていたかもしれず、このライフではより規律正しくなることが魂の課題となっています。",
+        "水瓶座": "ドラゴンヘッドが水瓶座にあることは、あなたが魂の成長において革新、コミュニティ、そして人道的な理想を経験する必要があることを示しています。人生での使命は、独自の視点を持ち、社会的変革に貢献することです。前世では因襲的な思考に囚われすぎていたかもしれず、このライフではより前衛的になることが魂の課題となっています。",
+        "魚座": "ドラゴンヘッドが魚座にあることは、あなたが魂の成長において精神性、直感、そして無条件の愛を経験する必要があることを示しています。人生での使命は、より高い意識状態に接続し、宇宙の流れに身を委ねることです。前世では現実的な懸念に焦点を当てすぎていたかもしれず、このライフではより霊的な次元を探求することが魂の課題となっています。"
+    },
+    'Dragon_Tail': {
+        "牡羊座": "ドラゴンテイルが牡羊座にあることは、あなたが前世で個人的な欲求や衝動に焦点を当てすぎていた可能性を示唆しています。このライフでは、より協力的で思いやりのある姿勢を学ぶ必要があります。自己中心的になりがちな傾向や独断的な行動パターンを克服することが魂の課題です。",
+        "牡牛座": "ドラゴンテイルが牡牛座にあることは、あなたが前世で物質的な所有や安定に執着しすぎていた可能性を示唆しています。このライフでは、より精神的な価値観を育み、執着を手放すことを学ぶ必要があります。物質主義や頑固さを克服することが魂の課題です。",
+        "双子座": "ドラゴンテイルが双子座にあることは、あなたが前世で表面的な知識や情報に散漫になりすぎていた可能性を示唆しています。このライフでは、より深い真実や哲学的な理解を追求する必要があります。うわべだけの会話や落ち着きのなさを克服することが魂の課題です。",
+        "蟹座": "ドラゴンテイルが蟹座にあることは、あなたが前世で感情的な依存や過保護な態度に陥りすぎていた可能性を示唆しています。このライフでは、より自立し、感情に振り回されない強さを育む必要があります。過去への執着や感情的な不安定さを克服することが魂の課題です。",
+        "獅子座": "ドラゴンテイルが獅子座にあることは、あなたが前世でプライドや自己中心的な創造性に焦点を当てすぎていた可能性を示唆しています。このライフでは、より謙虚になり、他者のニーズや集団の福祉に貢献することを学ぶ必要があります。自己顕示欲や支配的な傾向を克服することが魂の課題です。",
+        "乙女座": "ドラゴンテイルが乙女座にあることは、あなたが前世で批判的になりすぎたり、細部にこだわりすぎていた可能性を示唆しています。このライフでは、より全体的な視点を持ち、完璧主義を手放すことを学ぶ必要があります。過度の分析や不必要な心配を克服することが魂の課題です。",
+        "天秤座": "ドラゴンテイルが天秤座にあることは、あなたが前世で他者に依存しすぎたり、決断を避けすぎていた可能性を示唆しています。このライフでは、より自立し、自分自身の判断に従うことを学ぶ必要があります。優柔不断さや表面的な調和への執着を克服することが魂の課題です。",
+        "蠍座": "ドラゴンテイルが蠍座にあることは、あなたが前世で力の追求や感情的な操作に陥りすぎていた可能性を示唆しています。このライフでは、より透明性と信頼を育み、執着や復讐心を手放すことを学ぶ必要があります。強い支配欲や秘密主義を克服することが魂の課題です。",
+        "射手座": "ドラゴンテイルが射手座にあることは、あなたが前世で過度に理想主義的だったり、自分の信念を押し付けすぎていた可能性を示唆しています。このライフでは、より実践的で開かれた心を持つことを学ぶ必要があります。独断的な姿勢や過剰な楽観主義を克服することが魂の課題です。",
+        "山羊座": "ドラゴンテイルが山羊座にあることは、あなたが前世で社会的地位や成功に執着しすぎていた可能性を示唆しています。このライフでは、より内面的な満足感を見出し、柔軟性を育むことを学ぶ必要があります。過度の野心や厳格さを克服することが魂の課題です。",
+        "水瓶座": "ドラゴンテイルが水瓶座にあることは、あなたが前世で革新や独立性を追求するあまり、人間的なつながりを犠牲にしていた可能性を示唆しています。このライフでは、より温かみのある関係を育み、個人的な絆を大切にすることを学ぶ必要があります。過度の分離や感情的な切り離しを克服することが魂の課題です。",
+        "魚座": "ドラゴンテイルが魚座にあることは、あなたが前世で現実逃避や犠牲者意識に陥りすぎていた可能性を示唆しています。このライフでは、より実践的で自己責任のある姿勢を育むことを学ぶ必要があります。幻想や依存傾向、境界の曖昧さを克服することが魂の課題です。"
+    }
+}
+
+# 重要なライフイベント予測機能を実装
+def predict_life_events(natal_positions, forecast_years=5):
+    """
+    トランジットとプログレッションを組み合わせた重要ライフイベント予測
+    
+    Args:
+        natal_positions (dict): ネイタルチャートの天体位置データ
+        forecast_years (int): 予測する年数（デフォルト5年間）
+    
+    Returns:
+        list: 予測される重要ライフイベントのリスト（日付、イベント内容、強度を含む）
+    """
+    swe.set_ephe_path('ephe')
+    current_date = datetime.now()
+    current_year = current_date.year
+    
+    # 結果を格納するリスト
+    life_events = []
+    
+    # 主要天体のトランジットからの予測
+    transit_planets = ['Saturn', 'Jupiter', 'Uranus', 'Neptune', 'Pluto', 'True_Node']
+    natal_key_points = ['Sun', 'Moon', 'Asc', 'MC', 'True_Node'] + list(natal_positions.keys())
+    
+    # 重要なアスペクト角度とその意味
+    important_aspects = {
+        0: "コンジャンクション（合）- 強力なエネルギーの融合と新しい始まり",
+        60: "セクスタイル（六分）- 協調的な機会とスムーズな進展",
+        90: "スクエア（四分）- 緊張、挑戦、行動への呼びかけ",
+        120: "トライン（三分）- 調和的な流れと自然な才能の発揮",
+        180: "オポジション（対向）- 対立、バランス、関係性の再調整"
+    }
+    
+    # イベントの内容と対応するアスペクト
+    event_types = {
+        ('Jupiter', 'Sun', 0): "成功と拡大のチャンス、認識の高まり",
+        ('Jupiter', 'Sun', 120): "成長と好機の時期、楽観的な姿勢が報われる",
+        ('Jupiter', 'Moon', 0): "感情的な充実感と家庭の幸福",
+        ('Jupiter', 'Asc', 0): "個人的な成長と新しい機会",
+        ('Jupiter', 'MC', 0): "キャリアの進展と社会的認知",
+        ('Saturn', 'Sun', 90): "責任の増加と挑戦、重要な決断の時期",
+        ('Saturn', 'Sun', 180): "重要な人生の岐路、責任と現実との対峙",
+        ('Saturn', 'Moon', 90): "感情的な制約と自己規律の必要性",
+        ('Saturn', 'Asc', 0): "個人的アイデンティティの再構築",
+        ('Saturn', 'MC', 0): "キャリアの転機と長期目標の再評価",
+        ('Uranus', 'Sun', 0): "突然の変化と解放、自己認識の変革",
+        ('Uranus', 'Moon', 90): "感情的な不安定さと予期せぬ変化",
+        ('Uranus', 'Asc', 90): "ライフスタイルの急激な変化と新しい表現方法",
+        ('Uranus', 'MC', 90): "キャリアの突然の変化、新しい方向性",
+        ('Neptune', 'Sun', 90): "理想と現実の間の混乱、創造性の高まり",
+        ('Neptune', 'Moon', 90): "感情的な混乱と精神的な気づき",
+        ('Neptune', 'Asc', 0): "アイデンティティの再定義、精神的な覚醒",
+        ('Neptune', 'MC', 90): "キャリアの方向性が不明確になる時期",
+        ('Pluto', 'Sun', 0): "深い変容とパワーの課題、再生",
+        ('Pluto', 'Moon', 90): "深い感情的な変容と内面の力の発見",
+        ('Pluto', 'Asc', 90): "強烈な自己変革、古い自己の死と再生",
+        ('Pluto', 'MC', 0): "キャリアと社会的地位の根本的な変化",
+        ('True_Node', 'Sun', 0): "運命的な出会いと魂の目的の実現",
+        ('True_Node', 'Moon', 0): "カルマ的な感情パターンとの対面",
+        ('True_Node', 'Asc', 0): "人生の方向性の重要な転換点",
+    }
+    
+    # 異なる年（現在から最大5年後まで）のトランジットをチェック
+    for year_offset in range(forecast_years + 1):
+        check_year = current_year + year_offset
+        
+        # 各月をチェック
+        for month in range(1, 13):
+            if year_offset == 0 and month < current_date.month:
+                continue  # 過去の月はスキップ
+                
+            # 月の半ばの日付を使用
+            check_date = datetime(check_year, month, 15)
+            jd_ut = swe.julday(check_date.year, check_date.month, check_date.day)
+            
+            # トランジット天体の位置を計算
+            transit_positions = {}
+            for planet in transit_planets:
+                if planet in PLANETS:
+                    pos, retflag = swe.calc_ut(jd_ut, PLANETS[planet], swe.FLG_SPEED)
+                    transit_positions[planet] = {
+                        'longitude': pos[0],
+                        'speed': pos[3],
+                    }
+            
+            # 重要なアスペクトをチェック
+            for t_planet, t_data in transit_positions.items():
+                for n_planet, n_data in natal_positions.items():
+                    if n_planet not in natal_key_points:
+                        continue
+                        
+                    # 天体間の角度差を計算
+                    angle_diff = deg_diff(t_data['longitude'], n_data['longitude'])
+                    
+                    # 重要なアスペクトに近いかチェック
+                    for aspect_angle, aspect_desc in important_aspects.items():
+                        # アスペクトのオーブ（許容誤差範囲）
+                        orb = 2.0 if t_planet in ['Jupiter', 'Saturn'] else 1.0
+                        
+                        if abs(angle_diff - aspect_angle) <= orb:
+                            # イベントキーを作成
+                            event_key = (t_planet, n_planet, aspect_angle)
+                            
+                            # イベントの説明を取得
+                            if event_key in event_types:
+                                event_desc = event_types[event_key]
+                                
+                                # 強度計算（オーブが小さいほど強い）
+                                intensity = 100 - (abs(angle_diff - aspect_angle) / orb * 100)
+                                intensity = round(min(intensity, 100), 1)
+                                
+                                # 「逆行時は効果が強くなる」などの特別ルール
+                                if t_data['speed'] < 0:  # 逆行中
+                                    intensity *= 1.2
+                                    event_desc += "（逆行中のため効果が強調されます）"
+                                
+                                # イベントを追加
+                                event_date = f"{check_year}年{month}月"
+                                life_events.append({
+                                    'date': event_date,
+                                    'transit_planet': t_planet,
+                                    'transit_planet_jp': PLANET_NAMES_JP.get(t_planet, t_planet),
+                                    'natal_planet': n_planet,
+                                    'natal_planet_jp': PLANET_NAMES_JP.get(n_planet, n_planet),
+                                    'aspect_type': list(important_aspects.keys()).index(aspect_angle),
+                                    'aspect_desc': aspect_desc,
+                                    'event_desc': event_desc,
+                                    'intensity': intensity,
+                                })
+    
+    # イベントを日付順、強度順にソート
+    life_events.sort(key=lambda x: (x['date'], -x['intensity']))
+    
+    return life_events 

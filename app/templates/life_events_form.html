@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}ライフイベント予測{% endblock %}
+
+{% block head %}
+<style>
+    /* このページ専用のスタイルがあればここに追加 */
+    .form-section {
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock head %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center my-4">ライフイベント予測</h2>
+    <p class="text-center mb-4">出生情報とイベントの期間を入力して、重要なライフイベントを予測します。</p>
+
+    <form id="lifeEventsForm" action="{{ url_for('main.predict_life_events_endpoint') }}" method="post">
+        <div class="form-section">
+            <h3>出生情報</h3>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label for="birth_date">生年月日:</label>
+                    <input type="date" class="form-control" id="birth_date" name="birth_date" required>
+                </div>
+                <div class="col-md-4 form-group">
+                    <label for="birth_time">出生時刻:</label>
+                    <input type="time" class="form-control" id="birth_time" name="birth_time" required>
+                </div>
+                <div class="col-md-4 form-group">
+                    <label for="birth_place">出生地:</label>
+                    <input type="text" class="form-control" id="birth_place" name="birth_place" placeholder="例: 東京都" required>
+                    <div id="locationFeedbackLife" class="location-feedback"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <button type="button" id="toggleCoordinatesLife" class="toggle-button btn btn-sm btn-outline-secondary mt-2">緯度経度を手動入力する</button>
+                <div id="coordinatesFieldsLife" style="display:none; margin-top: 10px;">
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="latitude">緯度:</label>
+                            <input type="text" class="form-control" id="latitude" name="latitude" placeholder="例: 35.6895">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="longitude">経度:</label>
+                            <input type="text" class="form-control" id="longitude" name="longitude" placeholder="例: 139.6917">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>予測設定</h3>
+            <div class="row">
+                <div class="col-md-6 form-group">
+                    <label for="event_start_year">予測開始年:</label>
+                    <input type="number" class="form-control" id="event_start_year" name="event_start_year" min="1900" max="2100" placeholder="例: 2024" required>
+                </div>
+                <div class="col-md-6 form-group">
+                    <label for="event_duration_years">予測期間（年数）:</label>
+                    <select class="form-control" id="event_duration_years" name="event_duration_years">
+                        <option value="1">1年</option>
+                        <option value="3" selected>3年</option>
+                        <option value="5">5年</option>
+                        <option value="10">10年</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg">ライフイベントを予測する</button>
+        </div>
+    </form>
+    <div id="errorDisplayLife" class="error-message hidden" style="color: red; margin-top: 1em;"></div>
+
+</div>
+{% endblock content %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtnLife = document.getElementById('toggleCoordinatesLife');
+    const coordinatesFieldsLife = document.getElementById('coordinatesFieldsLife');
+    const birthPlaceInputLife = document.getElementById('birth_place');
+    const latInputLife = document.getElementById('latitude');
+    const lngInputLife = document.getElementById('longitude');
+    const feedbackElLife = document.getElementById('locationFeedbackLife');
+
+    if (toggleBtnLife && coordinatesFieldsLife) {
+        toggleBtnLife.addEventListener('click', function () {
+            const isHidden = coordinatesFieldsLife.style.display === 'none' || coordinatesFieldsLife.style.display === '';
+            coordinatesFieldsLife.style.display = isHidden ? 'block' : 'none';
+            toggleBtnLife.textContent = isHidden ? '自動入力に戻す' : '緯度経度を手動入力する';
+        });
+    }
+
+    function updateCoordinateFeedbackLife() {
+        if (latInputLife.value && lngInputLife.value) {
+            try {
+                const lat = parseFloat(latInputLife.value);
+                const lng = parseFloat(lngInputLife.value);
+                if (feedbackElLife) {
+                    feedbackElLife.innerHTML = \`
+                        <span class="coords-badge">緯度: \${lat.toFixed(6)}</span>
+                        <span class="coords-badge">経度: \${lng.toFixed(6)}</span>
+                        <span>手動入力された座標</span>
+                    \`;
+                }
+                if (coordinatesFieldsLife && toggleBtnLife) {
+                     coordinatesFieldsLife.style.display = 'block';
+                     toggleBtnLife.textContent = '自動入力に戻す';   
+                }
+            } catch (e) {
+                if (feedbackElLife) feedbackElLife.textContent = '有効な緯度経度を入力してください';
+            }
+        } else if (feedbackElLife) {
+            feedbackElLife.innerHTML = ''; // 入力がない場合はクリア
+        }
+    }
+
+    if (latInputLife) latInputLife.addEventListener('input', updateCoordinateFeedbackLife);
+    if (lngInputLife) lngInputLife.addEventListener('input', updateCoordinateFeedbackLife);
+    
+    // Google Maps APIキーが設定されている場合のみオートコンプリートを初期化
+    {% if google_maps_api_key %}
+    function initAutocompleteLife() {
+        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+            const autocomplete = new google.maps.places.Autocomplete(birthPlaceInputLife, {
+                types: ['(cities)']
+            });
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+                if (place.geometry && place.geometry.location) {
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    if(latInputLife) latInputLife.value = lat.toFixed(6);
+                    if(lngInputLife) lngInputLife.value = lng.toFixed(6);
+                    if(feedbackElLife) {
+                        feedbackElLife.innerHTML = \`
+                            <span class="coords-badge">緯度: \${lat.toFixed(6)}</span>
+                            <span class="coords-badge">経度: \${lng.toFixed(6)}</span>
+                            <span>\${place.formatted_address || place.name}</span>
+                        \`;
+                    }
+                     // オートコンプリートで選択されたら手動入力フィールドは隠す
+                    if (coordinatesFieldsLife && toggleBtnLife) {
+                        coordinatesFieldsLife.style.display = 'none';
+                        toggleBtnLife.textContent = '緯度経度を手動入力する';
+                    }
+                } else {
+                    if(feedbackElLife) feedbackElLife.textContent = '場所のジオメトリが見つかりません。';
+                }
+            });
+        } else {
+            console.warn("Google Maps APIが完全にロードされていません。オートコンプリートは無効です。");
+            if(feedbackElLife) feedbackElLife.textContent = '地図サービスに接続できません。地名検索は利用できません。';
+        }
+    }
+    // Google Maps APIの読み込みを待って初期化
+    if (window.google && window.google.maps) {
+        initAutocompleteLife();
+    } else {
+        // APIがまだ読み込まれていない場合、コールバックを設定
+        // ただし、base.htmlのscriptタグでasync deferしているので、通常はDOMContentLoadedより後に実行されるはず
+        // window.initMapCallback = initAutocompleteLife; // グローバルコールバックが必要な場合
+        console.log("Google Maps APIの読み込みを待機しています (life_events_form.html)");
+    }
+    {% else %}
+    if(birthPlaceInputLife && feedbackElLife) {
+        feedbackElLife.textContent = '地名検索機能は利用できません (APIキー未設定)';
+        birthPlaceInputLife.placeholder = "緯度経度を手動で入力してください";
+    }
+    {% endif %}
+
+    // フォーム送信時のエラーハンドリング
+    const lifeEventsForm = document.getElementById('lifeEventsForm');
+    const errorDisplayLife = document.getElementById('errorDisplayLife');
+
+    if (lifeEventsForm && errorDisplayLife) {
+        lifeEventsForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); // デフォルトの送信をキャンセル
+            errorDisplayLife.classList.add('hidden');
+            errorDisplayLife.innerHTML = '';
+
+            const formData = new FormData(lifeEventsForm);
+            
+            // クライアントサイドバリデーション
+            let isValid = true;
+            if (!formData.get('birth_date')) {
+                displayErrorLife("生年月日を入力してください。");
+                isValid = false;
+            }
+            if (!formData.get('birth_time')) {
+                displayErrorLife("出生時刻を入力してください。");
+                isValid = false;
+            }
+            if (!formData.get('birth_place') && (!formData.get('latitude') || !formData.get('longitude'))) {
+                displayErrorLife("出生地を入力するか、緯度経度を正確に入力してください。");
+                isValid = false;
+            }
+             if (!formData.get('event_start_year')) {
+                displayErrorLife("予測開始年を入力してください。");
+                isValid = false;
+            }
+
+            if (!isValid) return;
+
+
+            try {
+                const response = await fetch("{{ url_for('main.predict_life_events_endpoint') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    let errorText = \`サーバーエラーが発生しました: \${response.status}\`;
+                    try {
+                        const errorJson = await response.json();
+                        if (errorJson && errorJson.error) {
+                            errorText = errorJson.error;
+                        }
+                    } catch (e) {
+                        // JSONパースエラーは無視
+                    }
+                    throw new Error(errorText);
+                }
+
+                const result = await response.json();
+                
+                if (result.error) {
+                    displayErrorLife(result.error);
+                } else if (result.redirect_url) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    // 通常ここには来ないはず (リダイレクトされるため)
+                    displayErrorLife("予期せぬ結果が返されました。");
+                }
+
+            } catch (error) {
+                displayErrorLife(error.message || "予測中にエラーが発生しました。入力内容を確認してください。");
+                console.error("Error in life event prediction:", error);
+            }
+        });
+    }
+
+    function displayErrorLife(message) {
+        if (errorDisplayLife) {
+            errorDisplayLife.innerHTML += \`<p>\${message}</p>\`;
+            errorDisplayLife.classList.remove('hidden');
+        }
+    }
+});
+</script>
+{% endblock scripts %} 

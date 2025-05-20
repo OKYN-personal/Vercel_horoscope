@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}月のノード計算結果{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">月のノード（ドラゴンヘッド/テイル）計算結果</h1>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">基本情報</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>生年月日：</strong> {{ birth_date.strftime('%Y年%m月%d日') }}</p>
+                            <p><strong>出生時間：</strong> {{ birth_time.strftime('%H:%M') }}</p>
+                            <p><strong>出生地：</strong> {{ birth_place }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>緯度：</strong> {{ latitude }}</p>
+                            <p><strong>経度：</strong> {{ longitude }}</p>
+                            <p><strong>データソース：</strong> {{ location_source }}</p>
+                            {% if location_warning %}
+                            <div class="alert alert-warning">
+                                入力された地名が見つからなかったため、デフォルト（東京）の位置情報を使用しました。
+                                正確な計算のために、緯度経度を手動で入力してください。
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="card-title mb-0">月のノード位置</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h4 class="card-title mb-0">ドラゴンヘッド（北ノード）</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if lunar_nodes and 'True_Node' in lunar_nodes %}
+                                    <h5>トゥルーノード（実位置）</h5>
+                                    <p>
+                                        <span class="h2">{{ lunar_nodes.True_Node.glyph }}</span>
+                                        <strong>{{ lunar_nodes.True_Node.sign_jp }}</strong> 
+                                        {{ lunar_nodes.True_Node.degree_formatted }}
+                                    </p>
+                                    {% if lunar_nodes.True_Node.retrograde %}
+                                    <p><span class="badge bg-danger">逆行</span></p>
+                                    {% endif %}
+                                    
+                                    <h5>ミーンノード（平均位置）</h5>
+                                    <p>
+                                        <span class="h2">{{ lunar_nodes.Mean_Node.glyph }}</span>
+                                        <strong>{{ lunar_nodes.Mean_Node.sign_jp }}</strong> 
+                                        {{ lunar_nodes.Mean_Node.degree_formatted }}
+                                    </p>
+                                    {% if lunar_nodes.Mean_Node.retrograde %}
+                                    <p><span class="badge bg-danger">逆行</span></p>
+                                    {% endif %}
+                                    {% else %}
+                                    <p>データが見つかりませんでした。</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-warning text-dark">
+                                    <h4 class="card-title mb-0">ドラゴンテイル（南ノード）</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if lunar_nodes and 'Dragon_Tail' in lunar_nodes %}
+                                    <p>
+                                        <span class="h2">{{ lunar_nodes.Dragon_Tail.glyph }}</span>
+                                        <strong>{{ lunar_nodes.Dragon_Tail.sign_jp }}</strong> 
+                                        {{ lunar_nodes.Dragon_Tail.degree_formatted }}
+                                    </p>
+                                    <p><small class="text-muted">※ドラゴンテイルはドラゴンヘッドの正反対（180度）の位置にあります</small></p>
+                                    {% else %}
+                                    <p>データが見つかりませんでした。</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-purple text-white" style="background-color: #6f42c1;">
+                    <h3 class="card-title mb-0">月のノードの意味</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h4 class="card-title mb-0">ドラゴンヘッド（北ノード）の意味</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if lunar_node_interpretations and 'True_Node' in lunar_node_interpretations %}
+                                    <p>{{ lunar_node_interpretations.True_Node }}</p>
+                                    {% else %}
+                                    <p>この星座でのドラゴンヘッドの解釈は準備中です。</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-warning text-dark">
+                                    <h4 class="card-title mb-0">ドラゴンテイル（南ノード）の意味</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if lunar_node_interpretations and 'Dragon_Tail' in lunar_node_interpretations %}
+                                    <p>{{ lunar_node_interpretations.Dragon_Tail }}</p>
+                                    {% else %}
+                                    <p>この星座でのドラゴンテイルの解釈は準備中です。</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h3 class="card-title mb-0">人生の課題とバランス</h3>
+                </div>
+                <div class="card-body">
+                    {% if lunar_nodes and 'True_Node' in lunar_nodes and 'Dragon_Tail' in lunar_nodes %}
+                    <p>あなたの魂の進化の方向性として、<strong>{{ lunar_nodes.Dragon_Tail.sign_jp }}</strong>の特質から<strong>{{ lunar_nodes.True_Node.sign_jp }}</strong>の特質に向かう成長が示されています。</p>
+                    
+                    <h5>バランスを見つける</h5>
+                    <p>理想的な状態は、ドラゴンテイル（前世からの強み）を完全に捨て去るのではなく、ドラゴンヘッド（今世の目標）の特質を発達させながら両者のバランスを取ることです。</p>
+                    
+                    <h5>具体的な実践方法</h5>
+                    <ul>
+                        <li><strong>{{ lunar_nodes.True_Node.sign_jp }}</strong>の特質を意識的に取り入れる活動や習慣を生活に取り入れましょう。</li>
+                        <li>新しい挑戦が恐ろしく感じる時は、それはあなたが成長のための正しい道にいる兆候かもしれません。</li>
+                        <li><strong>{{ lunar_nodes.Dragon_Tail.sign_jp }}</strong>の特質に頼りすぎていると感じたら、意識的に別のアプローチを試みましょう。</li>
+                    </ul>
+                    {% else %}
+                    <p>人生の課題とバランスの解釈は準備中です。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-5">
+        <div class="col text-center">
+            <a href="{{ url_for('main.lunar_nodes_form') }}" class="btn btn-primary me-2">別の日時で計算する</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">ホームに戻る</a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}ライフイベント予測結果{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">ライフイベント予測結果</h1>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">基本情報</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>生年月日：</strong> {{ birth_date.strftime('%Y年%m月%d日') }}</p>
+                            <p><strong>出生時間：</strong> {{ birth_time.strftime('%H:%M') }}</p>
+                            <p><strong>出生地：</strong> {{ birth_place }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>緯度：</strong> {{ latitude }}</p>
+                            <p><strong>経度：</strong> {{ longitude }}</p>
+                            <p><strong>データソース：</strong> {{ location_source }}</p>
+                            {% if location_warning %}
+                            <div class="alert alert-warning">
+                                入力された地名が見つからなかったため、デフォルト（東京）の位置情報を使用しました。
+                                正確な計算のために、緯度経度を手動で入力してください。
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="card-title mb-0">今後{{forecast_years}}年間の重要ライフイベント予測</h3>
+                </div>
+                <div class="card-body">
+                    {% if life_events %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>時期</th>
+                                    <th>トランジット天体</th>
+                                    <th>ネイタル天体</th>
+                                    <th>アスペクト</th>
+                                    <th>イベント内容</th>
+                                    <th>強度</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in life_events %}
+                                <tr>
+                                    <td>{{ event.date }}</td>
+                                    <td>{{ event.transit_planet_jp }}</td>
+                                    <td>{{ event.natal_planet_jp }}</td>
+                                    <td>
+                                        {% if event.aspect_type == 0 %}
+                                        <span title="コンジャンクション（合）">☌</span>
+                                        {% elif event.aspect_type == 1 %}
+                                        <span title="セクスタイル（六分）">⚹</span>
+                                        {% elif event.aspect_type == 2 %}
+                                        <span title="スクエア（四分）">□</span>
+                                        {% elif event.aspect_type == 3 %}
+                                        <span title="トライン（三分）">△</span>
+                                        {% elif event.aspect_type == 4 %}
+                                        <span title="オポジション（対向）">☍</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ event.event_desc }}</td>
+                                    <td>
+                                        {% if event.intensity >= 90 %}
+                                        <span class="badge bg-danger">非常に強い ({{ event.intensity }}%)</span>
+                                        {% elif event.intensity >= 70 %}
+                                        <span class="badge bg-warning text-dark">強い ({{ event.intensity }}%)</span>
+                                        {% elif event.intensity >= 50 %}
+                                        <span class="badge bg-info">中程度 ({{ event.intensity }}%)</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">弱い ({{ event.intensity }}%)</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center">予測イベントが見つかりませんでした。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h3 class="card-title mb-0">予測について</h3>
+                </div>
+                <div class="card-body">
+                    <h5>予測の解釈方法</h5>
+                    <p>表示されているイベントは、占星術的な観点から見た可能性です。具体的な出来事というよりも、その時期に体験する可能性のあるエネルギーの質と考えてください。</p>
+                    
+                    <h5>強度について</h5>
+                    <p>強度は、そのイベントが及ぼす可能性のある影響の強さを示しています。強度の高いイベントは、より明確に体感できる可能性が高く、より重要な転機となる可能性があります。</p>
+                    
+                    <h5>主なアスペクト（角度関係）の意味</h5>
+                    <ul>
+                        <li><strong>コンジャンクション（合・0度）</strong>：エネルギーの融合、新しい始まり、強力な活性化</li>
+                        <li><strong>セクスタイル（六分・60度）</strong>：協調的なエネルギー、機会、スムーズな進展</li>
+                        <li><strong>スクエア（四分・90度）</strong>：緊張、挑戦、行動への呼びかけ、障害を乗り越える成長</li>
+                        <li><strong>トライン（三分・120度）</strong>：調和、流れの良さ、自然な才能の発揮、幸運</li>
+                        <li><strong>オポジション（対向・180度）</strong>：対立、バランス、関係性の再調整、認識の拡大</li>
+                    </ul>
+                    
+                    <h5>主要トランジット天体の影響</h5>
+                    <ul>
+                        <li><strong>木星</strong>：拡大、成長、機会、幸運、楽観主義</li>
+                        <li><strong>土星</strong>：制限、構造化、責任、安定性、長期的な成果</li>
+                        <li><strong>天王星</strong>：変化、革新、解放、予期せぬ事態、目覚め</li>
+                        <li><strong>海王星</strong>：霊性、直感、理想、幻想、境界の溶解</li>
+                        <li><strong>冥王星</strong>：変容、再生、力、深い癒し、終わりと始まり</li>
+                        <li><strong>ドラゴンヘッド（北ノード）</strong>：運命的な出会い、魂の目的に向かう道</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mb-5">
+        <div class="col text-center">
+            <a href="{{ url_for('main.life_events_form') }}" class="btn btn-primary me-2">別の日時で予測する</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">ホームに戻る</a>
+        </div>
+    </div>
+</div>
+{% endblock %} 
