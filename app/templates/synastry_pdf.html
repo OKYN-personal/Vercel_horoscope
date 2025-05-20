@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ pdf_title }}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; font-size: 10pt; line-height: 1.6; }
+        h1, h2, h3 { color: #333; page-break-after: avoid; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1em; page-break-inside: avoid; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .section { margin-bottom: 2em; padding-top: 1em; border-top: 1px solid #eee; page-break-before: auto; }
+        .page-break { page-break-before: always; }
+        .compatibility-score { text-align: center; font-size: 1.5em; margin: 1em 0; }
+        .person-info { margin-bottom: 1.5em; }
+        .footer { font-size: 8pt; text-align: center; color: #777; position: fixed; bottom: 0; width:100%; }
+    </style>
+</head>
+<body>
+    <h1>{{ pdf_title }}</h1>
+    <p>生成日時: {{ generated_at }}</p>
+
+    <div class="section">
+        <h2>相性度</h2>
+        <div class="compatibility-score">
+            <p><strong>{{ result.synastry.compatibility_score }} %</strong></p>
+            <p>
+                {% if result.synastry.compatibility_score >= 80 %}
+                    最高の相性です。多くの側面で調和があり、深いつながりが期待できます。
+                {% elif result.synastry.compatibility_score >= 60 %}
+                    良い相性です。お互いを高め合い、共に成長できる関係です。
+                {% elif result.synastry.compatibility_score >= 40 %}
+                    まずまずの相性です。努力次第でより良い関係を築けます。
+                {% else %}
+                    課題のある相性です。お互いを理解し合う努力が必要です。
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="section person-info">
+        <h2>人物1: {{ result.person1.birth_place }} ({{ result.person1.birth_date }} {{ result.person1.birth_time }})</h2>
+        <h3>主要天体</h3>
+        <table>
+            <thead><tr><th>天体</th><th>サイン</th><th>度数</th></tr></thead>
+            <tbody>
+            {% for name, data in result.person1.natal.positions.items() if name in ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Asc', 'MC'] %}
+                <tr>
+                    <td>{{ data.name_jp }} ({{ data.glyph }})</td>
+                    <td>{{ data.sign_jp }}</td>
+                    <td>{{ data.degree_formatted }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 人物1の他の情報（アスペクトなど）も必要に応じて追加 -->
+    </div>
+
+    <div class="section person-info">
+        <h2>人物2: {{ result.person2.birth_place }} ({{ result.person2.birth_date }} {{ result.person2.birth_time }})</h2>
+        <h3>主要天体</h3>
+        <table>
+            <thead><tr><th>天体</th><th>サイン</th><th>度数</th></tr></thead>
+            <tbody>
+            {% for name, data in result.person2.natal.positions.items() if name in ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Asc', 'MC'] %}
+                <tr>
+                    <td>{{ data.name_jp }} ({{ data.glyph }})</td>
+                    <td>{{ data.sign_jp }}</td>
+                    <td>{{ data.degree_formatted }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 人物2の他の情報も必要に応じて追加 -->
+    </div>
+
+    <div class="section page-break">
+        <h2>シナストリー アスペクト</h2>
+        {% if result.synastry.aspects %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>人物1の天体</th>
+                        <th>アスペクト</th>
+                        <th>人物2の天体</th>
+                        <th>オーブ</th>
+                        <th>解釈</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for aspect in result.synastry.aspect_interpretations %}
+                    <tr>
+                        <td>{{ aspect.person1_planet_jp }} ({{ aspect.person1_planet_glyph }})</td>
+                        <td>{{ aspect.aspect_type }} ({{ aspect.aspect_glyph }})</td>
+                        <td>{{ aspect.person2_planet_jp }} ({{ aspect.person2_planet_glyph }})</td>
+                        <td>{{ "%.2f"|format(aspect.orb) }}°</td>
+                        <td>{{ aspect.text }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>シナストリーアスペクト情報がありません。</p>
+        {% endif %}
+    </div>
+
+    <div class="section page-break">
+        <h2>コンポジットチャート（合成図）の天体</h2>
+        {% if result.synastry.composite_positions %}
+            <table>
+                <thead><tr><th>天体</th><th>サイン</th><th>度数</th></tr></thead>
+                <tbody>
+                {% for name, data in result.synastry.composite_positions.items() if name in ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Asc', 'MC'] %}
+                    <tr>
+                        <td>{{ data.name_jp }} ({{ data.glyph }})</td>
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <!-- コンポジットアスペクトも必要なら追加 -->
+        {% else %}
+            <p>コンポジットチャート情報がありません。</p>
+        {% endif %}
+    </div>
+
+</body>
+</html> 

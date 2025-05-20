@@ -9,12 +9,13 @@ from app.horoscope import calculate_natal_chart, calculate_transit, calculate_as
     calculate_secondary_progression, calculate_lunar_nodes, predict_life_events, NODE_INTERPRETATIONS, get_house_number, \
     calculate_synastry as hs_calculate_synastry # calculate_synastry を hs_calculate_synastry としてインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
-from app.pdf_generator import generate_horoscope_pdf
+from app.pdf_generator import generate_horoscope_pdf, generate_synastry_pdf # generate_synastry_pdf をインポート
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ASPECT_INTERPRETATIONS を追加
 from app.utils import get_city_coordinates # , calculate_timezone_offset # calculate_timezone_offset を一旦コメントアウト
 from app.geocoding import get_coordinates_from_google_maps # Google Maps APIを使う関数をインポート
 import os
+import traceback # tracebackモジュールをインポート
 import swisseph as swe # swissephをインポート
 
 bp = Blueprint('main', __name__)
@@ -456,95 +457,27 @@ def calculate_synastry():
         birth_place2 = request.form['birthPlace2']
         
         # 緯度経度の取得（人物1）
-        latitude1 = None
-        longitude1 = None
-        location_source1 = 'unknown' # 初期化
-        location_warning1 = True # 初期化
-        if 'latitude1' in request.form and 'longitude1' in request.form and request.form['latitude1'] and request.form['longitude1']:
-            # 手動入力された値を使用
-            try:
-                latitude1 = float(request.form['latitude1'])
-                longitude1 = float(request.form['longitude1'])
-                location_source1 = 'manual'
-                location_warning1 = False
-            except ValueError:
-                # 形式エラー
-                location_source1 = 'error'
-                location_warning1 = True
-        # else:
-            # 地名から緯度経度を取得 (get_geocode_from_place_name は未定義の可能性)
-            # try:
-            #     geocode_result = get_geocode_from_place_name(birth_place1)
-            #     if geocode_result:
-            #         latitude1, longitude1 = geocode_result
-            #         location_source1 = 'geocode'
-            #         location_warning1 = False
-            #     else:
-            #         # ジオコーディング失敗
-            #         location_source1 = 'error'
-            #         location_warning1 = True
-            # except Exception as e:
-            #     # ジオコーディングAPI例外
-            #     location_source1 = 'error'
-            #     location_warning1 = True
-            #     print(f"Geocoding error for {birth_place1}: {e}")
-
+        latitude1 = float(request.form.get('latitude1', 35.6895))
+        longitude1 = float(request.form.get('longitude1', 139.6917))
+        location_source1 = request.form.get('location_source1', 'デフォルト（東京）')
+        location_warning1 = request.form.get('location_warning1', 'True') == 'True'
+        
         # 緯度経度の取得（人物2）
-        latitude2 = None
-        longitude2 = None
-        location_source2 = 'unknown' # 初期化
-        location_warning2 = True # 初期化
-        if 'latitude2' in request.form and 'longitude2' in request.form and request.form['latitude2'] and request.form['longitude2']:
-            # 手動入力された値を使用
-            try:
-                latitude2 = float(request.form['latitude2'])
-                longitude2 = float(request.form['longitude2'])
-                location_source2 = 'manual'
-                location_warning2 = False
-            except ValueError:
-                # 形式エラー
-                location_source2 = 'error'
-                location_warning2 = True
-        # else:
-            # 地名から緯度経度を取得 (get_geocode_from_place_name は未定義の可能性)
-            # try:
-            #     geocode_result = get_geocode_from_place_name(birth_place2)
-            #     if geocode_result:
-            #         latitude2, longitude2 = geocode_result
-            #         location_source2 = 'geocode'
-            #         location_warning2 = False
-            #     else:
-            #         # ジオコーディング失敗
-            #         location_source2 = 'error'
-            #         location_warning2 = True
-            # except Exception as e:
-            #     # ジオコーディングAPI例外
-            #     location_source2 = 'error'
-            #     location_warning2 = True
-            #     print(f"Geocoding error for {birth_place2}: {e}")
-
+        latitude2 = float(request.form.get('latitude2', 35.6895))
+        longitude2 = float(request.form.get('longitude2', 139.6917))
+        location_source2 = request.form.get('location_source2', 'デフォルト（東京）')
+        location_warning2 = request.form.get('location_warning2', 'True') == 'True'
+        
         # タイムゾーンオフセットを計算（人物1と人物2）
-        # timezone_offset1 = calculate_timezone_offset(birth_date1, latitude1, longitude1) # 一旦コメントアウト
-        # timezone_offset2 = calculate_timezone_offset(birth_date2, latitude2, longitude2) # 一旦コメントアウト
         timezone_offset1 = 9.0 # 仮の値
         timezone_offset2 = 9.0 # 仮の値
         
         # ホロスコープ計算（人物1）
-        chart_info1 = {}
         natal_positions1, chart_info1_returned, natal_cusps1 = calculate_natal_chart(
             birth_date1, birth_time1, birth_place1, latitude1, longitude1, timezone_offset1, house_system=b'P'
         )
-        # chart_info1 に戻り値をマージするか、必要な情報を取り出す
-        chart_info1.update(chart_info1_returned) # 仮に chart_info_returned が辞書であると想定
-        asc1 = chart_info1.get('ascendant') # chart_info から asc を取得
-        mc1 = chart_info1.get('midheaven') # chart_info から mc を取得
-
-        # chart_info1['house_system'] = 'Placidus' # これは calculate_natal_chart の戻り値 (chart_info1_returned) に含まれる想定
-        # chart_info1['ascendant'] = asc1 # 上で取得するので不要
-        # chart_info1['midheaven'] = mc1 # 上で取得するので不要
-        chart_info1['house_cusps'] = natal_cusps1 # ハウスカスプを設定
-
-        # ハウス番号の設定（人物1）
+        chart_info1 = chart_info1_returned.copy()
+        chart_info1['house_cusps'] = natal_cusps1
         for planet_name, pos_data in natal_positions1.items():
             pos_data['house'] = get_house_number(pos_data['longitude'], chart_info1['house_cusps'])
         
@@ -552,20 +485,11 @@ def calculate_synastry():
         natal_aspects1 = calculate_aspects(natal_positions1)
 
         # ホロスコープ計算（人物2）
-        chart_info2 = {}
         natal_positions2, chart_info2_returned, natal_cusps2 = calculate_natal_chart(
             birth_date2, birth_time2, birth_place2, latitude2, longitude2, timezone_offset2, house_system=b'P'
         )
-        chart_info2.update(chart_info2_returned)
-        asc2 = chart_info2.get('ascendant')
-        mc2 = chart_info2.get('midheaven')
-        
-        # chart_info2['house_system'] = 'Placidus' # 同上
-        # chart_info2['ascendant'] = asc2 # 上で取得するので不要
-        # chart_info2['midheaven'] = mc2 # 上で取得するので不要
-        chart_info2['house_cusps'] = natal_cusps2 # ハウスカスプを設定
-
-        # ハウス番号の設定（人物2）
+        chart_info2 = chart_info2_returned.copy()
+        chart_info2['house_cusps'] = natal_cusps2
         for planet_name, pos_data in natal_positions2.items():
             pos_data['house'] = get_house_number(pos_data['longitude'], chart_info2['house_cusps'])
             
@@ -758,14 +682,21 @@ def calculate_synastry():
             }
         }
         
-        # HTMLをレンダリングして返す
+        # PDF生成
+        # PDFに渡すデータはHTML用とほぼ同じだが、SVGは含めない、または別途処理を検討
+        pdf_data = result_data.copy() # PDF用のデータを準備（必要に応じて調整）
+        # 例えば、SVGはPDFでは扱いが異なる場合があるので、PDFデータからは除外したり、画像に変換するなどの処理が必要な場合がある
+        # ここでは簡単のためHTMLと同じデータ構造を渡すが、synastry_pdf.html側でSVGを適切に扱えない場合は調整が必要
+        
+        pdf_filename = generate_synastry_pdf(pdf_data) 
+        pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
+        result_data['pdf_url'] = pdf_url # HTMLテンプレートにPDFのURLを渡す
+        
         return render_template('synastry_result.html', result=result_data)
         
     except Exception as e:
-        import traceback
-        traceback.print_exc() # エラー詳細をコンソールに表示
-        # エラー時はエラーページを表示するか、JSONで返すか選択
-        return jsonify({'success': False, 'error': str(e)}), 400 
+        current_app.logger.error(f"Error in /calculate_synastry: {e}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # 新しいエンドポイント: 月のノード専用ページ
 @bp.route('/lunar_nodes', methods=['GET'])

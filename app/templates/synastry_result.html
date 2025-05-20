@@ -239,6 +239,15 @@
 <div class="container result-page">
     <h1>シナストリー解析結果</h1>
     
+    {# PDFダウンロードボタン #}
+    {% if result.pdf_url %}
+        <div class="mb-4">
+            <a href="{{ result.pdf_url }}" download class="btn btn-success btn-lg">
+                <i class="fas fa-file-pdf"></i> この結果をPDFでダウンロード
+            </a>
+        </div>
+    {% endif %}
+    
     <!-- 相性度スコア -->
     <div class="compatibility-score">
         <div class="score-label">相性度</div>
