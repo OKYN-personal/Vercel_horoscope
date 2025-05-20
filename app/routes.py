@@ -399,11 +399,12 @@ def calculate():
                 'longitude': longitude,
                 'chart_info': chart_info,
                 'sabian': natal_sabian if 'natal_sabian' in locals() else None,
-                'aspect_grid': aspect_grid_data,
-                'interpretations': interpretations if 'interpretations' in locals() else None,
+                'aspects': natal_aspects,
                 'lunar_nodes': lunar_nodes, # 月のノードも natal に含めるか検討 (PDF構造に合わせるか)
                 'lunar_node_interpretations': lunar_node_interpretations # 同上
             },
+            'interpretations': interpretations if 'interpretations' in locals() else None,
+            'aspect_grid': aspect_grid_data, # aspect_gridを'natal'キーの外に移動
             'transit': { # トランジット情報も 'transit' キーの下にまとめる
                 'positions': transit_positions if 'transit_positions' in locals() else None,
                 'date_str': transit_date.strftime('%Y-%m-%d %H:%M') if transit_date else None, # transit_date を文字列に
