@@ -9,7 +9,7 @@ from app.horoscope import calculate_natal_chart, calculate_transit, calculate_as
     calculate_secondary_progression, calculate_lunar_nodes, predict_life_events, NODE_INTERPRETATIONS, get_house_number, \
     calculate_synastry as hs_calculate_synastry # calculate_synastry を hs_calculate_synastry としてインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
-from app.pdf_generator import generate_horoscope_pdf, generate_synastry_pdf # generate_synastry_pdf をインポート
+from app.pdf_generator import generate_horoscope_pdf, generate_synastry_pdf, generate_lunar_nodes_pdf, generate_life_events_pdf # 新しいPDF生成関数をインポート
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ASPECT_INTERPRETATIONS を追加
 from app.utils import get_city_coordinates # , calculate_timezone_offset # calculate_timezone_offset を一旦コメントアウト
@@ -786,6 +786,23 @@ def calculate_lunar_nodes_endpoint():
             if sign_jp in NODE_INTERPRETATIONS['Dragon_Tail']:
                 lunar_node_interpretations['Dragon_Tail'] = NODE_INTERPRETATIONS['Dragon_Tail'][sign_jp]
         
+        # PDF生成用のデータを準備
+        pdf_data = {
+            'birth_date': birth_date.strftime('%Y-%m-%d'),
+            'birth_time': birth_time.strftime('%H:%M'),
+            'birth_place': birth_place,
+            'latitude': latitude,
+            'longitude': longitude,
+            'location_source': location_source,
+            'location_warning': location_warning if 'location_warning' in locals() else False,
+            'lunar_nodes': lunar_nodes,
+            'lunar_node_interpretations': lunar_node_interpretations
+        }
+        
+        # PDF生成
+        pdf_filename = generate_lunar_nodes_pdf(pdf_data)
+        pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
+        
         # テンプレートに変数を渡して結果ページをレンダリング
         return render_template('lunar_nodes_result.html', 
                               birth_date=birth_date,
@@ -796,8 +813,10 @@ def calculate_lunar_nodes_endpoint():
                               location_source=location_source,
                               location_warning=location_warning if 'location_warning' in locals() else False,
                               lunar_nodes=lunar_nodes,
-                              lunar_node_interpretations=lunar_node_interpretations)
+                              lunar_node_interpretations=lunar_node_interpretations,
+                              pdf_url=pdf_url)
     except Exception as e:
+        current_app.logger.error(f"Error in /calculate_lunar_nodes: {e}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # 新しいエンドポイント: ライフイベント予測専用ページ
@@ -875,6 +894,23 @@ def predict_life_events_endpoint():
         # ライフイベント予測
         life_events = predict_life_events(natal_positions, forecast_years)
         
+        # PDF生成用のデータを準備
+        pdf_data = {
+            'birth_date': birth_date.strftime('%Y-%m-%d'),
+            'birth_time': birth_time.strftime('%H:%M'),
+            'birth_place': birth_place,
+            'latitude': latitude,
+            'longitude': longitude,
+            'location_source': location_source,
+            'location_warning': location_warning if 'location_warning' in locals() else False,
+            'forecast_years': forecast_years,
+            'life_events': life_events
+        }
+        
+        # PDF生成
+        pdf_filename = generate_life_events_pdf(pdf_data)
+        pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
+        
         # テンプレートに変数を渡して結果ページをレンダリング
         return render_template('life_events_result.html', 
                               birth_date=birth_date,
@@ -885,6 +921,8 @@ def predict_life_events_endpoint():
                               location_source=location_source,
                               location_warning=location_warning if 'location_warning' in locals() else False,
                               forecast_years=forecast_years,
-                              life_events=life_events)
+                              life_events=life_events,
+                              pdf_url=pdf_url)
     except Exception as e:
+        current_app.logger.error(f"Error in /predict_life_events: {e}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500 
