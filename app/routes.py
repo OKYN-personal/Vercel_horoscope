@@ -420,7 +420,7 @@ def calculate():
             'pdf_url': pdf_url
         }
 
-        current_app.logger.debug(f"Data passed to template result: {result_data_for_template['natal']['interpretations']}") # ★デバッグログ追加
+        current_app.logger.debug(f"Data passed to template result: {result_data_for_template['interpretations']}") # ★デバッグログ追加
 
         return render_template('result.html', result=result_data_for_template)
     except Exception as e:
