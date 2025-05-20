@@ -217,96 +217,114 @@
         </div>
     </div>
 
-     <div class="result-section">
-        <h2>アスペクト解説 (ネイタル)</h2>
-        <div class="interpretation">
-            {# <p style="color: #aaa;">（ここに各アスペクトの解説が表示されます）</p> #}
-            {% if interpretations and interpretations.aspects %}
-                <ul style="padding-left: 0; list-style: none;">
-                {% for aspect in interpretations.aspects %}
-                    <li style="margin-bottom: 0.8em; border-bottom: 1px dotted #eee; padding-bottom: 0.8em;">
-                        <strong>
-                            <span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
-                            <span class="glyph">{{ aspect.aspect_glyph | safe }}</span>
-                            <span class="glyph">{{ aspect.planet2_glyph | safe }}</span> {{ aspect.planet2_jp }}
-                            ({{ aspect.aspect_type }})
-                        </strong>
-                        <p class="interpretation-text" style="margin-top: 0.3em;">{{ aspect.text }}</p>
-                    </li>
-                {% endfor %}
-                </ul>
-            {% else %}
-                <p style="color: #aaa;">ネイタルアスペクトの解釈情報がありません。</p>
-            {% endif %}
-        </div>
-    </div>
-
-    {% if transit %}
+    <!-- 解釈 -->
     <div class="result-section">
-        <h2>トランジット情報 ({{ transit_date }})</h2>
-        <h3>トランジット天体位置</h3>
-        <table class="positions-table">
-             <thead>
-                <tr>
-                    <th>天体</th>
-                    <th>サイン</th>
-                    <th>度数</th>
-                    <th>記号</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if transit.positions %}
-                    {% for planet_name, data in transit.positions.items() %}
-                    <tr>
-                        <td>{{ planet_name }}</td>
-                        <td>{{ data.sign_jp }}</td>
-                        <td>{{ data.degree_formatted }}</td>
-                        <td><span class="glyph">{{ data.glyph }}</span></td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                     <tr><td colspan="4">トランジット天体位置データがありません。</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
+        <h2>リーディング</h2>
 
-        <h3>アスペクト解説 (トランジット - ネイタル)</h3>
-         <div class="interpretation">
-            {% if transit.aspects %}
-                <ul class="aspect-list">
-                {% for aspect in transit.aspects %}
-                    <li>
-                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
-                        ({{ aspect.planet1 }} - {{ aspect.planet2 }})
-                        オーブ: {{ aspect.orb }}°
-                    </li>
-                {% endfor %}
-                </ul>
-            {% else %}
-                <p>トランジットアスペクト情報がありません。</p>
-            {% endif %}
-         </div>
-         
-        <h3>サビアンシンボル (トランジット)</h3>
+        <h3>天体のサイン解説 (ネイタル)</h3>
         <div class="interpretation">
-            {% if transit.sabian and transit.sabian is mapping and transit.sabian | length > 0 %}
-                {% for planet_name, sabian_data in transit.sabian.items() %}
-                    <div class="sabian-interpretation" style="margin-bottom: 1em;">
-                         <h4>
-                            <span class="glyph">{{ transit.positions[planet_name].glyph if planet_name in transit.positions else planet_name }}</span> 
-                            {{ transit.positions[planet_name].name_jp | default(planet_name) }}のサビアンシンボル: {{ sabian_data.symbol }}
-                        </h4>
-                        {# <p class="interpretation-text">{{ sabian_data.interpretation }}</p> #} {# 冗長なのでコメントアウト #}
-                    </div>
+            {% if interpretations and interpretations.planet_in_sign %}
+                {% for planet_key, interp_data in interpretations.planet_in_sign.items() %}
+                <div class="interpretation-item">
+                    <h4><span class="glyph">{{ natal.positions[planet_key].glyph }}</span> {{ interp_data.key }} 解説</h4>
+                    <p class="interpretation-text">{{ interp_data.text }}</p>
+                </div>
                 {% endfor %}
             {% else %}
-                <p style="color: #aaa;">トランジットのサビアンシンボル解釈情報がありません。</p>
+                 <p>天体のサイン解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>天体のハウス解説 (ネイタル)</h3>
+        <div class="interpretation">
+             {% if interpretations and interpretations.planet_in_house %}
+                {% for planet_key, interp_data in interpretations.planet_in_house.items() %}
+                <div class="interpretation-item">
+                    <h4><span class="glyph">{{ natal.positions[planet_key].glyph }}</span> {{ interp_data.key }} 解説</h4>
+                    <p class="interpretation-text">{{ interp_data.text }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                 <p>天体のハウス解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>アスペクト解説 (ネイタル)</h3>
+        <div class="interpretation">
+            {% if interpretations and interpretations.aspects %}
+                {% for aspect in interpretations.aspects %}
+                <div class="interpretation-item aspect-item">
+                    <h4>
+                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
+                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
+                        ({{ aspect.aspect_type }})
+                    </h4>
+                    <p class="interpretation-text">{{ aspect.text }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>ネイタルアスペクトの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>サビアンシンボル (ネイタル)</h3>
+        <div class="interpretation">
+            {% if natal.sabian %}
+                {% for planet, sabian_data in natal.sabian.items() %}
+                <div class="sabian-interpretation interpretation-item">
+                    <h4>
+                        <span class="glyph">{{ natal.positions[planet].glyph }}</span>
+                        {{ natal.positions[planet].name_jp }}のサビアンシンボル: {{ sabian_data.symbol }}
+                    </h4>
+                    {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>ネイタルサビアンシンボル情報がありません。</p>
             {% endif %}
         </div>
     </div>
-    {% endif %}
 
-    {# --- Solar Arc Sabian Forecast for PDF (Moved Here) --- #}
+    <!-- 四季のサビアンシンボル MOVED HERE -->
+    <div class="result-section" id="seasonal-sabian-symbols-pdf">
+        <h2>四季のサビアンシンボル ({{ current_year_for_seasonal }}年 東京基準)</h2>
+
+        {% macro display_seasonal_sabian_pdf(title, sabian_data, year) %}
+            {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
+                <h3>{{ year }}年 {{ title }}</h3>
+                <table class="sabian-table seasonal-sabian-table positions-table"> {# positions-tableクラスも適用してスタイルを統一 #}
+                    <thead>
+                        <tr>
+                            <th>天体</th>
+                            <th>サイン</th>
+                            <th>度数</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in sabian_data %}
+                        <tr>
+                            <td><span class="glyph">{{ planet_data.glyph }}</span> {{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ planet_data.degree_formatted }}</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>{{ year }}年 {{ title }}の情報は見つかりませんでした。</p>
+            {% endif %}
+        {% endmacro %}
+
+        {{ display_seasonal_sabian_pdf('春分点', vernal_equinox_sabian, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('夏至点', summer_solstice_sabian, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('秋分点', autumnal_equinox_sabian, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('冬至点', winter_solstice_sabian, current_year_for_seasonal) }}
+    </div>
+
+    <!-- ソーラーアーク予測 -->
     {% if solar_arc_forecast %}
     <div class="result-section forecast-pdf-section" style="margin-top: 1.5em;">
         <h2>ソーラーアークによるサビアン予測 (直近{{ solar_arc_forecast | length }}年間)</h2>
@@ -336,34 +354,6 @@
     </div>
     {% endif %}
     {# --- End Solar Arc Sabian Forecast for PDF --- #}
-
-    {# --- Vernal Equinox Sabian for PDF (Moved Here) --- #}
-    {% if vernal_equinox_sabian %}
-    <div class="result-section forecast-pdf-section" style="margin-top: 1em; padding-bottom: 1em;"> {# PDFでも見切れ対策のpadding #}
-        <h2>{{ current_year_for_vernal }}年の春分点の天体サビアン情報</h2>
-        <table class="positions-table" style="font-size: 9pt;">
-            <thead>
-                <tr>
-                    <th>天体名</th>
-                    <th>星座</th>
-                    <th>度数 (星座内)</th>
-                    <th style="width: 50%;">サビアンシンボル</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for planet_data in vernal_equinox_sabian %}
-                <tr>
-                    <td>{{ planet_data.name_jp }}</td>
-                    <td>{{ planet_data.sign_jp }}</td>
-                    <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
-                    <td>{{ planet_data.sabian_symbol }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-    {# --- End Vernal Equinox Sabian for PDF --- #}
 
     <div class="footer">
         <p>This horoscope interpretation is generated based on astrological calculations. Interpretations are for reference only.</p>

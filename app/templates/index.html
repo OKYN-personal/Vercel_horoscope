@@ -1,29 +1,180 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    /* オートコンプリート候補のスタイル */
+    .pac-container {
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* 入力フィールドの位置表示スタイル */
+    .location-feedback {
+        margin-top: 5px;
+        font-size: 0.85em;
+        color: #666;
+    }
+    
+    /* 緯度経度のバッジスタイル */
+    .coords-badge {
+        display: inline-block;
+        background-color: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-right: 5px;
+    }
+    
+    /* ツールチップスタイル */
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        margin-left: 5px;
+        cursor: help;
+    }
+    
+    .tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        color: #555;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 8px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.85em;
+        font-weight: normal;
+    }
+    
+    .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #555 transparent transparent transparent;
+    }
+    
+    .tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    /* フォームセクションスタイル */
+    .form-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-section h2 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+        color: #333;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 0.5rem;
+    }
+    
+    /* ヘルプテキスト */
+    .help-text {
+        display: block;
+        font-size: 0.85em;
+        color: #666;
+        margin-top: 5px;
+    }
+</style>
+{% endblock head %}
+
 {% block content %}
 <div class="container">
     <form id="horoscopeForm" method="POST" action="{{ url_for('main.calculate') }}">
-        <div class="form-group">
-            <label for="birthDate">生年月日:</label>
-            <input type="date" id="birthDate" name="birthDate" required max="9999-12-31">
+        <div class="form-section">
+            <h2>基本情報</h2>
+            <div class="form-group">
+                <label for="birthDate">生年月日:
+                    <span class="tooltip">
+                        <span class="tooltip-icon">?</span>
+                        <span class="tooltip-text">ホロスコープを計算するための生年月日を入力してください。</span>
+                    </span>
+                </label>
+                <input type="date" id="birthDate" name="birthDate" required max="9999-12-31">
+            </div>
+            
+            <div class="form-group">
+                <label for="birthTime">出生時刻:
+                    <span class="tooltip">
+                        <span class="tooltip-icon">?</span>
+                        <span class="tooltip-text">より正確な計算のために出生時刻を入力してください。時刻が不明な場合は正午（12:00）などを入力できます。</span>
+                    </span>
+                </label>
+                <input type="time" id="birthTime" name="birthTime" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="birthPlace">出生地:
+                    <span class="tooltip">
+                        <span class="tooltip-icon">?</span>
+                        <span class="tooltip-text">都市名や地域名を入力すると候補が表示されます。選択すると緯度経度が自動的に設定されます。</span>
+                    </span>
+                </label>
+                <input type="text" id="birthPlace" name="birthPlace" placeholder="例: 東京" required>
+                <div id="locationFeedback" class="location-feedback"></div>
+            </div>
+            
+            <div class="form-group">
+                <button type="button" id="toggleCoordinates" class="toggle-button">緯度経度を手動入力する</button>
+                <div id="coordinatesFields" style="display:none; margin-top: 10px;">
+                    <div class="form-group">
+                        <label for="latitude">緯度:</label>
+                        <input type="text" id="latitude" name="latitude" placeholder="例: 35.6895" pattern="[-+]?[0-9]*\.?[0-9]+">
+                    </div>
+                    <div class="form-group">
+                        <label for="longitude">経度:</label>
+                        <input type="text" id="longitude" name="longitude" placeholder="例: 139.6917" pattern="[-+]?[0-9]*\.?[0-9]+">
+                    </div>
+                    <small class="help-text">※地名が見つからない場合や、より正確な位置情報を指定したい場合に入力してください</small>
+                </div>
+            </div>
         </div>
         
-        <div class="form-group">
-            <label for="birthTime">出生時刻:</label>
-            <input type="time" id="birthTime" name="birthTime" required>
+        <div class="form-section">
+            <h2>トランジット設定</h2>
+            <div class="form-group">
+                <label for="transitDate">トランジット日時:
+                    <span class="tooltip">
+                        <span class="tooltip-icon">?</span>
+                        <span class="tooltip-text">トランジット（現在や特定日の天体配置）を計算する日時を指定します。デフォルトは本日の正午です。</span>
+                    </span>
+                </label>
+                <input type="datetime-local" id="transitDate" name="transitDate" max="9999-12-31T23:59">
+                <small class="help-text">※入力しない場合も本日の正午でトランジットが計算されます</small>
+            </div>
         </div>
         
-        <div class="form-group">
-            <label for="birthPlace">出生地:</label>
-            <input type="text" id="birthPlace" name="birthPlace" placeholder="例: 東京" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="transitDate">トランジット日時（任意）:</label>
-            <input type="datetime-local" id="transitDate" name="transitDate" max="9999-12-31T23:59">
-        </div>
-        
-        <button type="submit">計算</button>
+        <button type="submit" class="submit-button">ホロスコープを計算</button>
     </form>
     
     {# エラーメッセージ表示用のdivを追加 #}
@@ -33,8 +184,50 @@
         <!-- 結果表示エリア -->
     </div>
 </div>
+{% endblock content %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-{% endblock %}
-{% endblock %} 
+
+{% if google_maps_api_key %}
+<!-- Google Maps API とPlace Autocomplete -->
+<script>
+    // Google Maps APIのコールバック関数
+    function initAutocomplete() {
+        // 出生地の入力フィールドにPlace Autocompleteを設定
+        const input = document.getElementById('birthPlace');
+        const options = {
+            types: ['(cities)'], // 都市名に限定
+            componentRestrictions: {country: 'jp'} // 日本に限定
+        };
+        
+        const autocomplete = new google.maps.places.Autocomplete(input, options);
+        
+        // 場所が選択されたときのイベント
+        autocomplete.addListener('place_changed', function() {
+            const place = autocomplete.getPlace();
+            if (!place.geometry) {
+                // ユーザーが有効な場所を選択しなかった場合
+                document.getElementById('locationFeedback').textContent = '有効な場所を選択してください';
+                return;
+            }
+            
+            // 緯度経度を取得して隠しフィールドに設定
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+            
+            // 選択した場所の情報をフィードバック
+            const feedbackEl = document.getElementById('locationFeedback');
+            feedbackEl.innerHTML = `
+                <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                <span>${place.formatted_address || place.name}</span>
+            `;
+        });
+    }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initAutocomplete&language=ja" async defer></script>
+{% endif %}
+{% endblock scripts %} 

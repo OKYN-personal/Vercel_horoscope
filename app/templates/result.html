@@ -123,7 +123,15 @@
         <p>出生地: {{ result.birth_place }}
             (緯度: {{ '%.2f'|format(result.natal.latitude) if result.natal.latitude is not none else 'N/A' }},
              経度: {{ '%.2f'|format(result.natal.longitude) if result.natal.longitude is not none else 'N/A' }})
+            <br>
+            <small>位置情報ソース: {{ result.natal.location_source | default('不明') }}</small>
         </p>
+        {% if result.natal.location_warning %}
+        <div class="location-warning" style="color: #ff6b6b; background-color: #fff8f8; border: 1px solid #ffcccc; padding: 10px; margin: 10px 0; border-radius: 5px;">
+            <strong>⚠️ 注意:</strong> 入力された地名「{{ result.birth_place }}」を正確に認識できませんでした。デフォルト値（東京の座標）を使用しています。<br>
+            より正確な結果を得るには、地名を主要都市名に変更するか、入力フォームで緯度経度を手動入力してください。
+        </div>
+        {% endif %}
         <p>タイムゾーン: {{ result.natal.timezone | default('N/A') }} / ハウスシステム: {{ result.natal.house_system | default('N/A') }}</p>
         {% if result.transit_date %}<p>トランジット日時: {{ result.transit_date }}</p>{% endif %}
     </div>
@@ -342,34 +350,6 @@
         {% endif %}
         {# --- End Solar Arc Sabian Forecast --- #}
 
-        {# --- Vernal Equinox Sabian --- #}
-        {% if result.vernal_equinox_sabian %}
-        <div class="result-section forecast-section" style="margin-top: 1em; padding-bottom: 20px;"> {# 見切れ対策でpadding-bottom追加 #}
-            <h2>{{ result.current_year_for_vernal }}年の春分点の天体サビアン情報</h2>
-            <table class="positions-table forecast-table">
-                <thead>
-                    <tr>
-                        <th>天体名</th>
-                        <th>星座</th>
-                        <th>度数 (星座内)</th>
-                        <th>サビアンシンボル</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for planet_data in result.vernal_equinox_sabian %}
-                    <tr>
-                        <td>{{ planet_data.name_jp }}</td>
-                        <td>{{ planet_data.sign_jp }}</td>
-                        <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
-                        <td>{{ planet_data.sabian_symbol }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-        {# --- End Vernal Equinox Sabian --- #}
-
     </div>
 
     {# --- Transit Tab content (only if transit data exists) --- #}
@@ -449,6 +429,42 @@
     </div>
     {% endif %}
     <!-- Interpretation Tabs End -->
+
+    <!-- 四季のサビアンシンボル MOVED HERE -->
+    <div class="result-section" id="seasonal-sabian-symbols">
+        <h2>四季のサビアンシンボル ({{ result.current_year_for_seasonal }}年 東京基準)</h2>
+
+        {% macro display_seasonal_sabian(title, sabian_data, year) %}
+            {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
+                <h3>{{ year }}年 {{ title }}</h3>
+                <table class="positions-table forecast-table">
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in sabian_data %}
+                        <tr>
+                            <td>{{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %} {# Removed extra <p> for not found, as it's part of the macro now if needed #}
+        {% endmacro %}
+
+        {{ display_seasonal_sabian('春分点', result.vernal_equinox_sabian, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('夏至点', result.summer_solstice_sabian, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('秋分点', result.autumnal_equinox_sabian, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('冬至点', result.winter_solstice_sabian, result.current_year_for_seasonal) }}
+    </div>
 
     {% if result.transit %}
     <div class="result-section">

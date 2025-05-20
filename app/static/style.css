@@ -55,6 +55,72 @@ button:hover {
     background-color: #2980b9;
 }
 
+/* トグルボタン */
+.toggle-button {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
+
+.toggle-button:hover {
+    background-color: #e9ecef;
+}
+
+/* 位置フィードバック */
+.location-feedback {
+    margin-top: 5px;
+    font-size: 0.85em;
+    color: #666;
+    background-color: #f8f8f8;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+/* 緯度経度バッジ */
+.coords-badge {
+    display: inline-block;
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 5px;
+    font-family: monospace;
+}
+
+/* 警告メッセージ */
+.location-warning {
+    color: #ff6b6b;
+    background-color: #fff8f8;
+    border: 1px solid #ffcccc;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+/* Google Maps Autocomplete候補リスト */
+.pac-container {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    border: 1px solid #ddd;
+    border-top: none;
+}
+
+.pac-item {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.pac-item:hover {
+    background-color: #f5f5f5;
+}
+
+.pac-item-selected {
+    background-color: #e6f0fd;
+}
+
 /* 結果表示エリア */
 #result {
     margin-top: 2rem;

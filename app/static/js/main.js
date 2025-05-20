@@ -2,50 +2,72 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('horoscopeForm');
     const errorDiv = document.getElementById('errorDisplay');
     
-    form.addEventListener('submit', function(e) {
-        // e.preventDefault(); // これを削除し、通常のフォーム送信を行う
+    // トランジット日時のデフォルト値を現在の日付の12:00に設定
+    const transitDateField = document.getElementById('transitDate');
+    if (transitDateField) {
+        const today = new Date();
+        today.setHours(12, 0, 0); // 12:00に設定
         
+        // YYYY-MM-DDThh:mm 形式にフォーマット
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const hours = String(today.getHours()).padStart(2, '0');
+        const minutes = String(today.getMinutes()).padStart(2, '0');
+        
+        const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+        transitDateField.value = formattedDate;
+    }
+    
+    // 緯度経度入力フィールドのトグル機能
+    const toggleBtn = document.getElementById('toggleCoordinates');
+    const coordinatesFields = document.getElementById('coordinatesFields');
+    
+    if (toggleBtn && coordinatesFields) {
+        toggleBtn.addEventListener('click', function() {
+            if (coordinatesFields.style.display === 'none') {
+                coordinatesFields.style.display = 'block';
+                toggleBtn.textContent = '緯度経度入力を隠す';
+            } else {
+                coordinatesFields.style.display = 'none';
+                toggleBtn.textContent = '緯度経度を手動入力する';
+            }
+        });
+        
+        // 緯度経度が入力されたらフィードバックも更新
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+        const feedbackEl = document.getElementById('locationFeedback');
+        
+        function updateCoordinateFeedback() {
+            if (latInput.value && lngInput.value) {
+                try {
+                    const lat = parseFloat(latInput.value);
+                    const lng = parseFloat(lngInput.value);
+                    feedbackEl.innerHTML = `
+                        <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                        <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                        <span>手動入力された座標</span>
+                    `;
+                    // 手動入力されたときは座標入力フィールドを表示
+                    coordinatesFields.style.display = 'block';
+                    toggleBtn.textContent = '緯度経度入力を隠す';
+                } catch (e) {
+                    feedbackEl.textContent = '有効な緯度経度を入力してください';
+                }
+            }
+        }
+        
+        latInput.addEventListener('change', updateCoordinateFeedback);
+        lngInput.addEventListener('change', updateCoordinateFeedback);
+    }
+    
+    form.addEventListener('submit', function(e) {
         // エラー表示をクリアする (送信前に)
         if (errorDiv) {
              errorDiv.classList.add('hidden');
              errorDiv.innerHTML = '';
         }
-        
-        // ローディング表示なども不要になるため削除
-        // resultDiv.innerHTML = '<div class="loading">計算中...</div>';
-        // resultDiv.classList.remove('hidden');
-        
-        // fetch APIを使った非同期通信部分はすべて削除
-        /*
-        const formData = new FormData(form);
-        
-        try {
-            const response = await fetch('/calculate', {
-                method: 'POST',
-                body: formData
-            });
-            
-            // response.json() を期待していたが、HTMLが返ってくるためエラーになる
-            const data = await response.json(); 
-            
-            if (data.success) {
-                // displayResults 関数も不要になる
-                // displayResults(data.result, data.pdf_url); 
-                // resultDiv.classList.remove('hidden');
-            } else {
-                errorDiv.innerHTML = `エラー: ${data.error || '不明なエラー'}`;
-                errorDiv.classList.remove('hidden');
-                // resultDiv.innerHTML = ''; 
-                // resultDiv.classList.add('hidden');
-            }
-        } catch (error) {
-            // Unexpected token '<' エラーはここで捕捉される可能性が高い
-            errorDiv.innerHTML = `エラーが発生しました: ${error.message}`;
-            errorDiv.classList.remove('hidden');
-            // resultDiv.innerHTML = ''; 
-            // resultDiv.classList.add('hidden');
-        }
-        */
     });
 });
 

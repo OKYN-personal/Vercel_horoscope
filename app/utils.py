@@ -52,6 +52,44 @@ def get_aspect_glyph(aspect_name):
 # aspect_types for direct import into horoscope.py
 aspect_types = ASPECT_ANGLES
 
+# 日本の主要都市の緯度経度データ
+JAPAN_CITIES = {
+    # 主要都市
+    '東京': {'latitude': 35.6895, 'longitude': 139.6917},
+    '大阪': {'latitude': 34.6937, 'longitude': 135.5022},
+    '名古屋': {'latitude': 35.1815, 'longitude': 136.9066},
+    '福岡': {'latitude': 33.5902, 'longitude': 130.4017},
+    '札幌': {'latitude': 43.0618, 'longitude': 141.3545},
+    '仙台': {'latitude': 38.2682, 'longitude': 140.8694},
+    '広島': {'latitude': 34.3853, 'longitude': 132.4553},
+    '金沢': {'latitude': 36.561049, 'longitude': 136.656631},
+    '那覇': {'latitude': 26.2124, 'longitude': 127.6809},
+    '横浜': {'latitude': 35.4498, 'longitude': 139.6424},
+    '京都': {'latitude': 35.0116, 'longitude': 135.7681},
+    '神戸': {'latitude': 34.6913, 'longitude': 135.1956},
+    '埼玉': {'latitude': 35.8616, 'longitude': 139.6456},
+    '千葉': {'latitude': 35.6073, 'longitude': 140.1063},
+    '新潟': {'latitude': 37.9161, 'longitude': 139.0364},
+    '静岡': {'latitude': 34.9756, 'longitude': 138.3827},
+}
+
+def get_city_coordinates(place_name):
+    """
+    地名から緯度経度を取得する関数
+    
+    Args:
+        place_name (str): 地名（都市名や住所など）
+        
+    Returns:
+        tuple: (latitude, longitude) または地名が見つからない場合は None
+    """
+    # 入力された地名に日本の都市名が含まれているか確認
+    for city, coords in JAPAN_CITIES.items():
+        if city in place_name:
+            return coords['latitude'], coords['longitude'], True
+    
+    # 地名が見つからなかった場合はNoneを返す
+    return None, None, False
 
 def validate_date(date_str):
     """日付のバリデーション"""

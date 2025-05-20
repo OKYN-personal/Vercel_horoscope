@@ -411,6 +411,126 @@ def get_current_age(birth_date):
     age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
     return age
 
+def find_solar_longitude_event_jd_ut(year: int, target_longitude: float) -> float:
+    """太陽が指定された黄経に到達するユリウス日(UT)を見つける汎用関数"""
+    swe.set_ephe_path('ephe')
+    
+    # ターゲット黄経に基づいて探索開始月を大まかに設定
+    # target_longitude: 0 (春分), 90 (夏至), 180 (秋分), 270 (冬至)
+    if 0 <= target_longitude < 90: # 春分前後
+        search_month = 3
+        search_day = 19
+    elif 90 <= target_longitude < 180: # 夏至前後
+        search_month = 6
+        search_day = 19
+    elif 180 <= target_longitude < 270: # 秋分前後
+        search_month = 9
+        search_day = 20 # 少し遅めから
+    elif 270 <= target_longitude < 360: # 冬至前後
+        search_month = 12
+        search_day = 19
+    else:
+        raise ValueError("Target longitude must be between 0 and 359.")
+
+    jd_start_search = swe.utc_to_jd(year, search_month, search_day, 0, 0, 0, 1)[1]
+    jd_event_ut = jd_start_search # 初期値
+
+    # 1時間ごとにチェック (約3日分を探索)
+    for h in range(24 * 4): # 余裕をもって4日分
+        current_jd_ut = jd_start_search + h / 24.0
+        sun_pos, _ = swe.calc_ut(current_jd_ut, swe.SUN, swe.FLG_SWIEPH)
+        sun_lon = sun_pos[0]
+
+        if h > 0:
+            prev_sun_pos, _ = swe.calc_ut(jd_start_search + (h - 1) / 24.0, swe.SUN, swe.FLG_SWIEPH)
+            prev_sun_lon = prev_sun_pos[0]
+
+            # 黄経がターゲット度数をまたいだかどうかの判定を一般化
+            # 例: target=90 の場合、88 -> 91 のような変化を探す
+            # prev_sun_lon が target_longitude より小さく、sun_lon が target_longitude 以上になる瞬間
+            # またはその逆（逆行は考慮しない前提だが、黄経0度をまたぐ場合は特別扱いが必要）
+
+            # 0度(360度)をまたぐ場合の処理 (春分点、またはtarget_longitudeが0に近い場合)
+            if target_longitude < 10 and prev_sun_lon > 350 and sun_lon < 10: # 350度台から10度未満へ
+                 is_crossed = True
+            # 0度をまたがない通常のケース
+            elif prev_sun_lon < target_longitude and sun_lon >= target_longitude:
+                is_crossed = True
+            # ターゲット度数直前で計算が終了しないように、少し幅を持たせる (例: 89.9 -> 90.1)
+            elif abs(sun_lon - target_longitude) < 1.0 and abs(prev_sun_lon - target_longitude) > abs(sun_lon - target_longitude):
+                is_crossed = True # よりターゲットに近い方に進んだ
+            else:
+                is_crossed = False
+
+            if is_crossed:
+                # より正確な時刻を分単位で探索
+                jd_hour_start = jd_start_search + (h - 1) / 24.0 # クロスした1時間の開始時刻
+                for m in range(60):
+                    current_jd_ut_minute = jd_hour_start + m / (24.0 * 60.0)
+                    sun_pos_minute, _ = swe.calc_ut(current_jd_ut_minute, swe.SUN, swe.FLG_SWIEPH)
+                    sun_lon_minute = sun_pos_minute[0]
+                    
+                    # 分単位でのクロス判定 (0度またぎも考慮)
+                    prev_sun_lon_minute, _ = swe.calc_ut(jd_hour_start + (m-1 if m > 0 else 0) / (24.0 * 60.0), swe.SUN, swe.FLG_SWIEPH)
+                    prev_sun_lon_minute = prev_sun_lon_minute[0]
+
+                    is_crossed_minute = False
+                    if target_longitude < 10 and prev_sun_lon_minute > 350 and sun_lon_minute < 10:
+                        is_crossed_minute = True
+                    elif prev_sun_lon_minute < target_longitude and sun_lon_minute >= target_longitude:
+                        is_crossed_minute = True
+                    
+                    if is_crossed_minute:
+                        # ターゲット度数に最も近い時刻を選ぶ (より簡潔な方法: swe.revtrans etc. の利用検討)
+                        # ここでは、クロスした直後の時刻を採用する
+                        jd_event_ut = current_jd_ut_minute
+                        logging.debug(f"Solar event at lon {target_longitude} found near UT JD: {jd_event_ut}")
+                        swe.close()
+                        return jd_event_ut
+                # 分単位で見つからなければ、時間単位のクロス直後の時刻を採用
+                jd_event_ut = current_jd_ut
+                logging.debug(f"Solar event at lon {target_longitude} (hourly precision) found near UT JD: {jd_event_ut}")
+                swe.close()
+                return jd_event_ut
+    
+    logging.warning(f"Solar event at lon {target_longitude} NOT precisely found, using rough estimate (end of search period).")
+    swe.close()
+    return jd_event_ut # 見つからなければ探索期間の最後の方の値を返す (要改善)
+
+def calculate_celestial_sabian_at_event(jd_ut_event: float, event_name: str):
+    """指定されたユリウス日(UT)における各天体のサビアンシンボルを計算する関数"""
+    swe.set_ephe_path('ephe')
+    event_planet_data = []
+    logging.debug(f"Calculating Sabian symbols for {event_name} at JD_UT: {jd_ut_event}")
+
+    for planet_name in PLANETS_FOR_FORECAST:
+        planet_id = PLANETS.get(planet_name)
+        if planet_id is None:
+            logging.warning(f"{event_name}: Planet ID not found for {planet_name}, skipping.")
+            continue
+
+        pos, _ = swe.calc_ut(jd_ut_event, planet_id, swe.FLG_SWIEPH)
+        longitude = pos[0]
+        
+        planet_details = get_planet_details(longitude, planet_name)
+        sabian_symbol = get_sabian_symbol(longitude)
+        logging.debug(f"{event_name} Data for {planet_name}: lon={longitude}, sabian='{sabian_symbol}'")
+
+        event_planet_data.append({
+            'name': planet_name,
+            'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
+            'longitude': longitude,
+            'sign': planet_details['sign'],
+            'sign_jp': planet_details['sign_jp'],
+            'degree_in_sign_decimal': planet_details['degree'],
+            'degree_formatted': planet_details['degree_formatted'],
+            'sabian_symbol': sabian_symbol,
+            'glyph': get_planet_glyph(planet_name)
+        })
+    
+    swe.close()
+    return event_planet_data
+
 def calculate_solar_arc_sabian_forecast(birth_date, birth_time, birth_place, latitude, longitude, timezone_offset_input, years_to_forecast=3):
     """ソーラーアーク法によるサビアン予測 (年齢計算を修正)"""
     swe.set_ephe_path('ephe')
@@ -487,107 +607,31 @@ def calculate_solar_arc_sabian_forecast(birth_date, birth_time, birth_place, lat
 
 def calculate_vernal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
     """指定された年の春分点の各天体のサビアンシンボルを計算 (東京基準)"""
-    swe.set_ephe_path('ephe')
+    # swe.set_ephe_path('ephe') # calculate_celestial_sabian_at_event 内で呼ばれるので不要かも
     
-    # 春分の日時を計算 (太陽が牡羊座0度に入る瞬間)
-    # swe.solcross() は黄経0度（春分点）を太陽が通過する時刻のユリウス日を返す
-    # flags に swe.CALC_RISE を指定すると、指定した地理的位置での日の出時刻になるため注意
-    # ここでは黄経0度通過時刻が欲しいので、太陽の動きのみに依存する。
-    # swe.houses などと異なり、観測地は直接影響しないはずだが、
-    # 一応東京の標準時で解釈するために jd_et を jd_ut に変換する際にオフセットを考慮。
-    # または、厳密にはUTCで計算し、表示時にJSTに変換する。
-    # ここではUTCで計算を進める。
-
-    # swe.fixstar_ut を使って太陽の黄経を求めるのは星用なので不適切。
-    # 春分点（太陽黄経0度）の時刻を求めるには、太陽の位置を精密に計算し、
-    # 黄経が0度になる瞬間を見つける必要がある。
-    # swe.calc_ut で太陽の位置を計算し、それが牡羊座0度になる日時を探す。
-    # 簡単な方法としては、指定年の3月20日か21日あたりで時刻を細かく動かして探す。
+    # 春分点 (太陽黄経0度) のユリウス日(UT)を見つける
+    jd_vernal_equinox_ut = find_solar_longitude_event_jd_ut(year, 0.0)
     
-    # swe.pheno_ut を使用して太陽が牡羊座0度に入る正確なUT時刻を取得
-    # swe.PHENOCOND_DIRECTION は太陽が指定された黄経を通過する方向を示すフラグ
-    # swe.PHENOCOND_MINMAX は黄経の最小値/最大値
-    # swe.calc_ut で太陽の位置を0度として検索するより、専用関数があればそれを使う。
-    # swe.solcross(jd_start, target_lon) のような関数はswissephのPython APIに直接はない。
-    # 別の方法: 3月20日ごろのUTを計算し、その時刻での太陽黄経を見る
-    # 太陽が牡羊座0度になる瞬間を見つけるのは複雑なので、簡略化して春分の日正午(UT)で計算する
+    # その瞬間の各天体のサビアン情報を計算
+    vernal_equinox_data = calculate_celestial_sabian_at_event(jd_vernal_equinox_ut, f"{year}年 春分点")
     
-    dt_vernal_approx_utc = datetime(year, 3, 20, 12, 0, 0, tzinfo=timezone.utc) # 3月20日正午UTとする
-    # より正確には、swe.event_data() で春分点を求めるべきだが、ここでは簡略化
+    # swe.close() # calculate_celestial_sabian_at_event 内で呼ばれる
+    return vernal_equinox_data
 
-    # 実際には、太陽が牡羊座0度になる正確な日時を求める
-    # 簡単なアプローチとして、指定年の3月19日から3月22日までの太陽黄経を1時間ごとに計算し、
-    # 0度をまたぐ（または359度台から0度台になる）瞬間を探す
-    # ここでは簡略化のため、3月20日正午(UT)の惑星位置とする
-    # より正確にはswe.fixstar_utで'VernalEquinox'の計算はできない。
-    # swe.calc_utで太陽黄経0度になる時間を探索する。
-    # 発展: swe.pheno_ut や swe.solcross のような機能がないか確認、なければ反復計算で探す。
-    # 暫定: 指定年の3月20日 12:00 UT の各天体の位置とする
-    # 厳密な春分点の計算
-    jd_start_search = swe.utc_to_jd(year, 3, 19, 0, 0, 0, 1)[1] # 3月19日0時UTから探索開始
-    jd_vernal_equinox_ut = jd_start_search # 初期値
-    
-    # swe.calc_ut を使って太陽黄経が0度になる瞬間を細かく探す
-    # 1時間ごとにチェック
-    for h in range(24 * 3): # 3日間 (19, 20, 21日)
-        current_jd_ut = jd_start_search + h / 24.0
-        sun_pos, _ = swe.calc_ut(current_jd_ut, swe.SUN, swe.FLG_SWIEPH)
-        sun_lon = sun_pos[0]
-        # 牡羊座0度付近の判定 (359.x度から0.x度へ変わる瞬間、または直接0.0度)
-        # 前の時間との比較が必要
-        if h > 0:
-            prev_sun_pos, _ = swe.calc_ut(jd_start_search + (h - 1) / 24.0, swe.SUN, swe.FLG_SWIEPH)
-            prev_sun_lon = prev_sun_pos[0]
-            if (prev_sun_lon > 270 and prev_sun_lon < 360) and (sun_lon >= 0 and sun_lon < 90): # 魚座から牡羊座へ
-                jd_vernal_equinox_ut = current_jd_ut # この1時間内に春分点がある
-                # さらに細かく探すならここから分単位で
-                for m in range(60):
-                    current_jd_ut_minute = jd_start_search + h / 24.0 + m / (24.0 * 60.0)
-                    sun_pos_minute, _ = swe.calc_ut(current_jd_ut_minute, swe.SUN, swe.FLG_SWIEPH)
-                    if sun_pos_minute[0] < prev_sun_lon and sun_pos_minute[0] < 1.0 : # 0度を越えて少し進んだところ
-                         # 0度を跨いだ瞬間に近いところで採用
-                        if abs(sun_pos_minute[0]) < abs(prev_sun_lon - 360):
-                             jd_vernal_equinox_ut = current_jd_ut_minute
-                        else:
-                             #前の時刻を採用
-                             jd_vernal_equinox_ut = jd_start_search + h / 24.0 + (m-1 if m > 0 else 0) / (24.0 * 60.0)
-                        break # 分単位の探索終了
-                break # 時間単位の探索終了
-    # もし上記で見つからなければ、デフォルトとして3月20日12時UT
-    if jd_vernal_equinox_ut == jd_start_search: # ループで見つからなかった場合
-         dt_vernal_approx_utc = datetime(year, 3, 20, 12, 0, 0, tzinfo=timezone.utc)
-         jd_vernal_equinox_ut = swe.utc_to_jd(
-             dt_vernal_approx_utc.year, dt_vernal_approx_utc.month, dt_vernal_approx_utc.day,
-             dt_vernal_approx_utc.hour, dt_vernal_approx_utc.minute, dt_vernal_approx_utc.second, 1
-         )[1]
+def calculate_summer_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の夏至点の各天体のサビアンシンボルを計算 (東京基準)"""
+    jd_summer_solstice_ut = find_solar_longitude_event_jd_ut(year, 90.0)
+    summer_solstice_data = calculate_celestial_sabian_at_event(jd_summer_solstice_ut, f"{year}年 夏至点")
+    return summer_solstice_data
 
+def calculate_autumnal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の秋分点の各天体のサビアンシンボルを計算 (東京基準)"""
+    jd_autumnal_equinox_ut = find_solar_longitude_event_jd_ut(year, 180.0)
+    autumnal_equinox_data = calculate_celestial_sabian_at_event(jd_autumnal_equinox_ut, f"{year}年 秋分点")
+    return autumnal_equinox_data
 
-    vernal_equinox_planet_data = []
-    # PLANETS_FOR_FORECAST には冥王星が含まれている
-    for planet_name in PLANETS_FOR_FORECAST: # 全ての主要天体について計算
-        planet_id = PLANETS.get(planet_name) # PLANETS辞書からID取得
-        if planet_id is None: 
-            logging.warning(f"Vernal Equinox: Planet ID not found for {planet_name}, skipping.")
-            continue 
-
-        pos, _ = swe.calc_ut(jd_vernal_equinox_ut, planet_id, swe.FLG_SWIEPH) # 速度は不要
-        longitude = pos[0]
-        
-        planet_details = get_planet_details(longitude, planet_name)
-        sabian_symbol = get_sabian_symbol(longitude)
-        logging.debug(f"Vernal Equinox Data for {planet_name}: lon={longitude}, sabian='{sabian_symbol}'") # ★デバッグログ追加
-
-        vernal_equinox_planet_data.append({
-            'name': planet_name,
-            'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
-            'longitude': longitude,
-            'sign': planet_details['sign'],
-            'sign_jp': planet_details['sign_jp'],
-            'degree_in_sign_decimal': planet_details['degree'],
-            'degree_formatted': planet_details['degree_formatted'],
-            'sabian_symbol': sabian_symbol,
-            'glyph': get_planet_glyph(planet_name)
-        })
-    
-    swe.close()
-    return vernal_equinox_planet_data 
+def calculate_winter_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の冬至点の各天体のサビアンシンボルを計算 (東京基準)"""
+    jd_winter_solstice_ut = find_solar_longitude_event_jd_ut(year, 270.0)
+    winter_solstice_data = calculate_celestial_sabian_at_event(jd_winter_solstice_ut, f"{year}年 冬至点")
+    return winter_solstice_data 

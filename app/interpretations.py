@@ -478,9 +478,217 @@ def get_interpretation_text(category, key1, key2=None, key3=None):
              planets = sorted([key1, key2])
              # key3 (aspect_type) は routes.py で小文字化済みのはず
              aspect_key = f"{planets[0]}_{planets[1]}_{key3}"
-             # get() の第二引数も修正
-             return ASPECT_INTERPRETATIONS.get(aspect_key, "準備中です") # 「準備中です」に変更
+             # 既存の解釈文があればそれを返し、なければ動的に生成
+             interpretation = ASPECT_INTERPRETATIONS.get(aspect_key)
+             if interpretation:
+                 return interpretation
+             else:
+                 # 動的に解釈を生成
+                 return get_dynamic_aspect_interpretation(planets[0], planets[1], key3)
         else:
             return "アスペクト情報が不十分です。"
     else:
         return "不明なカテゴリです。"
+
+# 天体の基本的な特質（アスペクト解釈の動的生成用）
+PLANET_QUALITIES = {
+    "Sun": {
+        "name_jp": "太陽",
+        "keywords": "自己表現、アイデンティティ、創造性、活力、意識、意志",
+        "positive": "自信、リーダーシップ、創造力、生命力、明るさ",
+        "negative": "傲慢、支配的、自己中心的、頑固"
+    },
+    "Moon": {
+        "name_jp": "月",
+        "keywords": "感情、無意識、直感、母性、家庭、習慣、記憶",
+        "positive": "共感力、感受性、思いやり、母性、安定",
+        "negative": "気分屋、依存的、感情的、過保護"
+    },
+    "Mercury": {
+        "name_jp": "水星",
+        "keywords": "知性、コミュニケーション、情報、論理、学習、移動",
+        "positive": "知的、適応力、分析力、伝達力、好奇心",
+        "negative": "神経質、批判的、多重人格的、表面的"
+    },
+    "Venus": {
+        "name_jp": "金星",
+        "keywords": "愛情、調和、美意識、価値観、魅力、快適さ",
+        "positive": "愛情深い、魅力的、芸術的、調和的、優美",
+        "negative": "怠惰、贅沢、浪費的、浅薄"
+    },
+    "Mars": {
+        "name_jp": "火星",
+        "keywords": "行動力、エネルギー、情熱、勇気、闘争心、競争心",
+        "positive": "積極的、勇敢、情熱的、自己主張、活動的",
+        "negative": "攻撃的、短気、衝動的、粗暴"
+    },
+    "Jupiter": {
+        "name_jp": "木星",
+        "keywords": "拡大、成長、幸運、信念、楽観、哲学、冒険",
+        "positive": "楽観的、寛大、成長、幸運、発展的",
+        "negative": "過剰、浪費、過信、傲慢、見栄"
+    },
+    "Saturn": {
+        "name_jp": "土星",
+        "keywords": "制限、責任、忍耐、努力、現実、時間、構造",
+        "positive": "忍耐力、責任感、慎重さ、実用性、規律",
+        "negative": "悲観的、抑圧的、硬直、厳格、孤独"
+    },
+    "Uranus": {
+        "name_jp": "天王星",
+        "keywords": "革新、自由、独創性、変化、予測不能、反抗",
+        "positive": "独創的、革新的、自由、ユニーク、進歩的",
+        "negative": "反抗的、予測不能、過激、不安定"
+    },
+    "Neptune": {
+        "name_jp": "海王星",
+        "keywords": "想像力、理想、夢、霊性、幻想、犠牲、曖昧さ",
+        "positive": "想像力、直感力、芸術的、共感力、霊的",
+        "negative": "現実逃避、迷い、混乱、欺瞞、中毒"
+    },
+    "Pluto": {
+        "name_jp": "冥王星",
+        "keywords": "変容、再生、権力、深層心理、破壊と創造",
+        "positive": "強靭、変革、深い洞察力、強い意志、再生力",
+        "negative": "支配的、強迫的、執着、破壊的、操作的"
+    },
+    "Asc": {
+        "name_jp": "ASC",
+        "keywords": "自己表現、外見、第一印象、生き方のスタイル",
+        "positive": "自己主張、個性、対応力、自発性",
+        "negative": "仮面、外見への執着、自己防衛"
+    },
+    "MC": {
+        "name_jp": "MC",
+        "keywords": "社会的地位、キャリア、目標、公的評価、使命",
+        "positive": "目標意識、社会性、達成感、責任感",
+        "negative": "肩書きへの執着、社会的プレッシャー"
+    }
+}
+
+# アスペクトの基本的な特質
+ASPECT_QUALITIES = {
+    "conjunction": {
+        "name_jp": "コンジャンクション",
+        "keywords": "結合、一体化、強調、統合",
+        "nature": "中性（天体により変化）",
+        "description": "二つの天体のエネルギーが融合し、互いに強め合います。特性が一体化し、強く表れます。"
+    },
+    "opposition": {
+        "name_jp": "オポジション",
+        "keywords": "対立、バランス、認識、対峙",
+        "nature": "困難（調和も可能）",
+        "description": "二つの天体が対立し、バランスを取ることが課題となります。意識的な調整が必要です。"
+    },
+    "trine": {
+        "name_jp": "トライン",
+        "keywords": "調和、円滑、才能、自然な流れ",
+        "nature": "調和的",
+        "description": "二つの天体が自然に調和し、互いの良い面を引き出します。才能や恵みをもたらします。"
+    },
+    "square": {
+        "name_jp": "スクエア",
+        "keywords": "緊張、葛藤、挑戦、行動力",
+        "nature": "困難",
+        "description": "二つの天体の間に緊張関係が生じ、葛藤や課題をもたらしますが、成長の機会でもあります。"
+    },
+    "sextile": {
+        "name_jp": "セクスタイル",
+        "keywords": "機会、協力、調和、発展",
+        "nature": "調和的",
+        "description": "二つの天体が協力し合い、互いを高め合います。チャンスや可能性を開きます。"
+    },
+    "semisextile": {
+        "name_jp": "セミセクスタイル",
+        "keywords": "穏やかな刺激、小さな調整、気づき",
+        "nature": "穏やかな調和",
+        "description": "二つの天体が緩やかに関連し、小さな変化や成長の機会をもたらします。"
+    },
+    "inconjunct": {
+        "name_jp": "インコンジャンクト",
+        "keywords": "調整、不適合、ずれ、適応",
+        "nature": "やや困難",
+        "description": "二つの天体のエネルギーが噛み合わず、調整や適応が必要となります。"
+    },
+    "quintile": {
+        "name_jp": "クインタイル",
+        "keywords": "創造性、才能、独自性",
+        "nature": "調和的・創造的",
+        "description": "二つの天体の間に創造的なエネルギーが流れ、ユニークな才能や表現をもたらします。"
+    },
+    "biquintile": {
+        "name_jp": "バイクインタイル",
+        "keywords": "創造性、独自の視点、調和的表現",
+        "nature": "調和的・創造的",
+        "description": "二つの天体の間に調和した創造的エネルギーが流れ、独自の才能を発展させます。"
+    }
+}
+
+# 動的にアスペクト解釈文を生成する関数
+def get_dynamic_aspect_interpretation(planet1, planet2, aspect_type):
+    """
+    天体の特質とアスペクトの性質に基づいて、動的に解釈文を生成する
+    
+    Args:
+        planet1 (str): 天体1の名前
+        planet2 (str): 天体2の名前
+        aspect_type (str): アスペクトタイプ（小文字）
+    
+    Returns:
+        str: 生成された解釈文
+    """
+    # データが存在するか確認
+    if planet1 not in PLANET_QUALITIES or planet2 not in PLANET_QUALITIES:
+        return f"{planet1}と{planet2}の{aspect_type}の解釈は準備中です。"
+    
+    if aspect_type not in ASPECT_QUALITIES:
+        return f"{planet1}と{planet2}の{aspect_type}の解釈は準備中です。"
+    
+    # 日本語の天体名を取得
+    p1_jp = PLANET_QUALITIES[planet1]["name_jp"]
+    p2_jp = PLANET_QUALITIES[planet2]["name_jp"]
+    aspect_jp = ASPECT_QUALITIES[aspect_type]["name_jp"]
+    
+    # アスペクトの性質を取得
+    aspect_nature = ASPECT_QUALITIES[aspect_type]["nature"]
+    aspect_desc = ASPECT_QUALITIES[aspect_type]["description"]
+    
+    # 天体の特質を取得
+    p1_keywords = PLANET_QUALITIES[planet1]["keywords"]
+    p2_keywords = PLANET_QUALITIES[planet2]["keywords"]
+    
+    # アスペクトタイプに応じた特質を選択
+    if aspect_type in ["trine", "sextile", "quintile", "biquintile"]:
+        p1_qualities = PLANET_QUALITIES[planet1]["positive"]
+        p2_qualities = PLANET_QUALITIES[planet2]["positive"]
+        connection = "調和的に結びつき"
+    elif aspect_type in ["square", "opposition", "inconjunct"]:
+        p1_qualities = PLANET_QUALITIES[planet1]["positive"] + "、" + PLANET_QUALITIES[planet1]["negative"]
+        p2_qualities = PLANET_QUALITIES[planet2]["positive"] + "、" + PLANET_QUALITIES[planet2]["negative"]
+        
+        if aspect_type == "square":
+            connection = "間に緊張関係が生じ"
+        elif aspect_type == "opposition":
+            connection = "対立し、バランスを求め"
+        else:  # inconjunct
+            connection = "噛み合わず、調整が必要となり"
+    else:  # conjunction
+        p1_qualities = PLANET_QUALITIES[planet1]["positive"] + "、" + PLANET_QUALITIES[planet1]["negative"]
+        p2_qualities = PLANET_QUALITIES[planet2]["positive"] + "、" + PLANET_QUALITIES[planet2]["negative"]
+        connection = "が一体化し強く表れ"
+    
+    # 解釈文を構築
+    if aspect_type in ["trine", "sextile"]:
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質が互いを高め合い、自然な才能として発揮されるでしょう。{aspect_desc}"
+    elif aspect_type in ["square", "opposition"]:
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質の間に葛藤が生じることもありますが、意識的に調整することで成長につながります。{aspect_desc}"
+    elif aspect_type == "conjunction":
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質が融合し、強い影響力を持つでしょう。{aspect_desc}"
+    elif aspect_type in ["quintile", "biquintile"]:
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質が創造的に組み合わさり、ユニークな才能を生み出すでしょう。{aspect_desc}"
+    elif aspect_type == "semisextile":
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質が穏やかに関連し、小さな成長の機会をもたらします。{aspect_desc}"
+    else:  # inconjunct
+        interpretation = f"{p1_jp}({p1_keywords})と{p2_jp}({p2_keywords})が{aspect_jp}で{connection}ます。{p1_qualities}と{p2_qualities}の特質をうまく調整することが課題となるでしょう。{aspect_desc}"
+    
+    return interpretation

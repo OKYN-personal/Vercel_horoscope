@@ -1,20 +1,25 @@
-from flask import Blueprint, render_template, request, jsonify, url_for
+from flask import Blueprint, render_template, request, jsonify, url_for, current_app
 from datetime import datetime
 # from .utils.horoscope import calculate_planet_positions, get_sabian_symbol
 # from .utils.aspects import calculate_aspects, get_aspect_description
 # from app import create_app # create_appは循環参照になる可能性があるので通常routesからは呼ばない
 from app.horoscope import calculate_natal_chart, calculate_transit, calculate_aspects, generate_aspect_grid, \
-    calculate_solar_arc_sabian_forecast, calculate_vernal_equinox_sabian # 新しい関数をインポート
+    calculate_solar_arc_sabian_forecast, calculate_vernal_equinox_sabian, \
+    calculate_summer_solstice_sabian, calculate_autumnal_equinox_sabian, calculate_winter_solstice_sabian # 新しい関数をインポート
 from app.sabian import get_sabian_symbol # get_interpretation は削除されたのでインポートしない
 from app.pdf_generator import generate_horoscope_pdf
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ハウスとアスペクトの解釈もインポート
+from app.utils import get_city_coordinates # 都市座標を取得する関数をインポート
+from app.geocoding import get_coordinates_from_google_maps # Google Maps APIを使う関数をインポート
 
 bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-    return render_template('index.html')
+    # Google Maps APIキーをテンプレートに渡す
+    google_maps_api_key = current_app.config.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('index.html', google_maps_api_key=google_maps_api_key)
 
 @bp.route('/calculate', methods=['POST'])
 def calculate():
@@ -23,11 +28,54 @@ def calculate():
         birth_date = datetime.strptime(request.form['birthDate'], '%Y-%m-%d').date()
         birth_time = datetime.strptime(request.form['birthTime'], '%H:%M').time()
         birth_place = request.form['birthPlace']
-        # TODO: 将来的には緯度経度、タイムゾーン、ハウスシステムもフォームから受け取る
-        latitude = 35.6895 # 仮: 東京
-        longitude = 139.6917 # 仮: 東京
-        timezone_offset = 9.0 # 仮: JST
-        house_system = b'P' # 仮: Placidus に戻す
+        
+        # 緯度経度が手動入力されているか確認
+        manual_latitude = request.form.get('latitude')
+        manual_longitude = request.form.get('longitude')
+        
+        # 手動入力された緯度経度を使用
+        if manual_latitude and manual_longitude:
+            try:
+                latitude = float(manual_latitude)
+                longitude = float(manual_longitude)
+                location_source = '手動入力'
+            except ValueError:
+                return jsonify({
+                    'success': False, 
+                    'error': '緯度経度の形式が正しくありません。数値を入力してください。'
+                }), 400
+        else:
+            # 地名から緯度経度を取得
+            latitude, longitude, location_found = get_city_coordinates(birth_place)
+            
+            if location_found:
+                location_source = f'地名データベース（{birth_place}）'
+            
+            # 地名が見つからない場合、Google Maps APIを試す
+            if not location_found:
+                # APIキーが設定されているか確認し、APIを呼び出す
+                api_key = current_app.config.get('GOOGLE_MAPS_API_KEY')
+                if api_key:
+                    google_lat, google_lng, google_found = get_coordinates_from_google_maps(birth_place, api_key)
+                    if google_found:
+                        latitude = google_lat
+                        longitude = google_lng
+                        location_found = True
+                        location_source = f'Google Maps API（{birth_place}）'
+            
+            # それでも地名が見つからない場合
+            if not location_found:
+                # デフォルト値（東京）を使用
+                latitude = 35.6895
+                longitude = 139.6917
+                location_source = 'デフォルト（東京）'
+                # フラグを設定して、結果ページでアラートを表示
+                location_warning = True
+            else:
+                location_warning = False
+        
+        timezone_offset = 9.0 # 日本標準時
+        house_system = b'P' # Placidus
         # house_system = b'W' # 仮: Whole Sign に変更して試す
 
         # ネイタルチャートの計算 (cusps も受け取る)
@@ -197,6 +245,36 @@ def calculate():
                          'interpretation': sabian_text # 解釈文も同じシンボル文
                      }
 
+        # ソーラーアーク予測
+        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
+            birth_date, birth_time, birth_place,
+            latitude, longitude, timezone_offset
+        )
+
+        # 春分点のサビアンシンボル (ネイタル年)
+        vernal_equinox_sabian = calculate_vernal_equinox_sabian(birth_date.year)
+
+        # 夏至点のサビアンシンボル (ネイタル年)
+        summer_solstice_sabian = calculate_summer_solstice_sabian(birth_date.year)
+
+        # 秋分点のサビアンシンボル (ネイタル年)
+        autumnal_equinox_sabian = calculate_autumnal_equinox_sabian(birth_date.year)
+
+        # 冬至点のサビアンシンボル (ネイタル年)
+        winter_solstice_sabian = calculate_winter_solstice_sabian(birth_date.year)
+
+        # --- 年間イベントのサビアンシンボル計算 (現在の年を使用) ---
+        current_year = datetime.now().year
+        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
+            birth_date, birth_time, birth_place,
+            latitude, longitude, timezone_offset
+        )
+        vernal_equinox_sabian = calculate_vernal_equinox_sabian(current_year)
+        summer_solstice_sabian = calculate_summer_solstice_sabian(current_year)
+        autumnal_equinox_sabian = calculate_autumnal_equinox_sabian(current_year)
+        winter_solstice_sabian = calculate_winter_solstice_sabian(current_year)
+        # --- ここまで年間イベント計算 ---
+
         # PDFの生成（結果データに含める前に生成）
         # PDF生成関数に渡すデータ構造を一時的に作成
         pdf_result_data = {
@@ -207,35 +285,30 @@ def calculate():
                 'positions': natal_positions,
                 'aspects': natal_aspects,
                 'sabian': natal_sabian,
+                'latitude': latitude,
+                'longitude': longitude,
+                'location_source': location_source,
+                'location_warning': location_warning if 'location_warning' in locals() else False,
                 **chart_info
             },
             'aspect_grid': aspect_grid_data,
-            'chart_svg': chart_svg, # PDFにもSVGを含める場合 (WeasyPrint対応次第)
-            'interpretations': interpretations, # PDFにも解釈文を渡す
+            'chart_svg': chart_svg, 
+            'interpretations': interpretations,
+            'solar_arc_forecast': solar_arc_forecast, # PDFに追加
+            'vernal_equinox_sabian': vernal_equinox_sabian, # PDFに追加
+            'summer_solstice_sabian': summer_solstice_sabian, # PDFに追加
+            'autumnal_equinox_sabian': autumnal_equinox_sabian, # PDFに追加
+            'winter_solstice_sabian': winter_solstice_sabian, # PDFに追加
+            'current_year_for_seasonal': current_year # PDFに年も渡す (キー名を変更)
         }
         if transit_positions:
             pdf_result_data['transit'] = {
                 'positions': transit_positions,
-                'aspects': transit_aspects, # 元のアスペクトリスト（オーブなど含む）
-                'aspect_interpretations': transit_aspect_interpretations, # 解釈付きリスト
+                'aspects': transit_aspects, 
+                'aspect_interpretations': transit_aspect_interpretations, 
                 'sabian': transit_sabian
             }
             pdf_result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
-
-        # --- ソーラーアーク予測と春分点サビアンの計算 --- #
-        # ソーラーアーク予測 (直近3年)
-        solar_arc_forecast = calculate_solar_arc_sabian_forecast(
-            birth_date, birth_time, birth_place, latitude, longitude, timezone_offset
-        )
-        # 今年の春分点サビアン (東京基準)
-        current_year = datetime.now().year
-        vernal_equinox_sabian = calculate_vernal_equinox_sabian(current_year)
-
-        # PDFデータに追加
-        pdf_result_data['solar_arc_forecast'] = solar_arc_forecast
-        pdf_result_data['vernal_equinox_sabian'] = vernal_equinox_sabian
-        pdf_result_data['current_year_for_vernal'] = current_year # 年情報も渡す
-        # --- ここまで追加 --- #
 
         pdf_filename = generate_horoscope_pdf(pdf_result_data) # PDF生成実行
         pdf_url = url_for('static', filename=f'pdfs/{pdf_filename}')
@@ -249,32 +322,36 @@ def calculate():
                 'positions': natal_positions,
                 'aspects': natal_aspects,
                 'sabian': natal_sabian,
+                'latitude': latitude,
+                'longitude': longitude,
+                'location_source': location_source,
+                'location_warning': location_warning if 'location_warning' in locals() else False,
                 **chart_info
             },
             'aspect_grid': aspect_grid_data,
-            'chart_svg': chart_svg, # SVGをテンプレートへ
-            'pdf_url': pdf_url, # PDFへのリンク用URL
-            'interpretations': interpretations # 解釈文をテンプレートへ
+            'chart_svg': chart_svg, 
+            'pdf_url': pdf_url, 
+            'interpretations': interpretations, 
+            'solar_arc_forecast': solar_arc_forecast, 
+            'vernal_equinox_sabian': vernal_equinox_sabian, 
+            'summer_solstice_sabian': summer_solstice_sabian, 
+            'autumnal_equinox_sabian': autumnal_equinox_sabian, 
+            'winter_solstice_sabian': winter_solstice_sabian, 
+            'current_year_for_seasonal': current_year # HTMLに年も渡す (キー名を変更)
         }
-
+        
         if transit_positions:
             result_data['transit'] = {
                 'positions': transit_positions,
-                'aspects': transit_aspects, # これはアスペクトグリッドやリスト表示に使える
-                'aspect_interpretations': transit_aspect_interpretations, # 解釈表示用
+                'aspects': transit_aspects, 
+                'aspect_interpretations': transit_aspect_interpretations, 
                 'sabian': transit_sabian
             }
             result_data['transit_date'] = transit_date.strftime('%Y-%m-%d %H:%M')
         
-        # --- ソーラーアーク予測と春分点サビアンを result_data にも追加 --- #
-        result_data['solar_arc_forecast'] = solar_arc_forecast
-        result_data['vernal_equinox_sabian'] = vernal_equinox_sabian
-        result_data['current_year_for_vernal'] = current_year # 年情報も渡す
-        # --- ここまで追加 --- #
-
         # HTMLをレンダリングして返す
         return render_template('result.html', result=result_data)
-
+        
     except Exception as e:
         import traceback
         traceback.print_exc() # エラー詳細をコンソールに表示
