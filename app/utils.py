@@ -15,7 +15,7 @@ PLANET_GLYPHS = {
     'Sun': '☉', 'Moon': '☽', 'Mercury': '☿', 'Venus': '♀', 'Mars': '♂',
     'Jupiter': '♃', 'Saturn': '♄', 'Uranus': '♅', 'Neptune': '♆', 'Pluto': '♇',
     'Asc': 'Asc', 'MC': 'MC',
-    'True Node': '☊' # Example for True Node
+    'True_Node': '☊', 'Mean_Node': '☊', 'Dragon_Tail': '☋'  # 月のノードの記号を追加
 }
 
 # Aspect glyphs and angles (used as aspect_types in horoscope.py)

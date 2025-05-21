@@ -239,18 +239,18 @@
             {% endif %}
             {% if secondary_progression %}
             <div class="toc-item">
-                <span class="toc-number">10.</span>
+                <span class="toc-number">{% if solar_arc_forecast %}10{% else %}9{% endif %}.</span>
                 <span class="toc-title">二次進行法予測</span>
                 <span class="toc-dots"></span>
-                <span class="toc-page">8</span>
+                <span class="toc-page">{% if solar_arc_forecast %}8{% else %}7{% endif %}</span>
             </div>
             {% endif %}
             {% if transit is defined and transit %}
             <div class="toc-item">
-                <span class="toc-number">11.</span>
+                <span class="toc-number">{% if secondary_progression %}{% if solar_arc_forecast %}11{% else %}10{% endif %}{% else %}{% if solar_arc_forecast %}10{% else %}9{% endif %}{% endif %}.</span>
                 <span class="toc-title">トランジット情報</span>
                 <span class="toc-dots"></span>
-                <span class="toc-page">9</span>
+                <span class="toc-page">{% if secondary_progression %}{% if solar_arc_forecast %}9{% else %}8{% endif %}{% else %}{% if solar_arc_forecast %}8{% else %}7{% endif %}{% endif %}</span>
             </div>
             {% endif %}
         </div>
@@ -263,7 +263,7 @@
             (緯度: {{ '%.2f'|format(natal.latitude) if natal.latitude is not none else 'N/A' }}, 
              経度: {{ '%.2f'|format(natal.longitude) if natal.longitude is not none else 'N/A' }})
         </p>
-        <p>タイムゾーン: {{ natal.timezone | default('N/A') }} / ハウスシステム: {{ natal.house_system | default('N/A') }}</p>
+        <p>タイムゾーン: {{ natal.timezone | default('日本標準時 (UTC+9:00)') }} / ハウスシステム: {{ natal.house_system_jp | default('プラシダス') }}</p>
     </div>
 
     <div class="result-section" id="natal-positions">
@@ -497,7 +497,7 @@
     {# --- Secondary Progression Forecast for PDF --- #}
     {% if secondary_progression %}
     <div class="bookmark-section result-section forecast-pdf-section" id="secondary-progression">
-        <h2>10. 二次進行法による予測 (直近{{ secondary_progression | length }}年間)</h2>
+        <h2>{% if solar_arc_forecast %}10{% else %}9{% endif %}. 二次進行法による予測 (直近{{ secondary_progression | length }}年間)</h2>
         {% for yearly_data in secondary_progression %}
             <h3>{{ yearly_data.age }}歳 (進行日: {{ yearly_data.progressed_date }})</h3>
             <table class="positions-table" style="margin-bottom: 1.5em; font-size: 9pt;">
@@ -530,7 +530,7 @@
     <!-- トランジット情報 (存在する場合) -->
     {% if transit is defined and transit %}
     <div class="bookmark-section result-section" id="transit-info">
-        <h2>11. トランジット情報 ({{ transit_date }})</h2>
+        <h2>{% if secondary_progression %}{% if solar_arc_forecast %}11{% else %}10{% endif %}{% else %}{% if solar_arc_forecast %}10{% else %}9{% endif %}{% endif %}. トランジット情報 ({{ transit_date }})</h2>
         
         <h3>トランジット天体位置</h3>
         <table class="positions-table">

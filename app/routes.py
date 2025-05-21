@@ -397,11 +397,14 @@ def calculate():
                 'positions': natal_positions,
                 'latitude': latitude,
                 'longitude': longitude,
-                'chart_info': chart_info,
+                'chart_info': chart_info, # すべてのチャート情報を含む
                 'sabian': natal_sabian if 'natal_sabian' in locals() else None,
                 'aspects': natal_aspects,
-                'lunar_nodes': lunar_nodes, # 月のノードも natal に含めるか検討 (PDF構造に合わせるか)
-                'lunar_node_interpretations': lunar_node_interpretations # 同上
+                'lunar_nodes': lunar_nodes, # 月のノードも natal に含める
+                'lunar_node_interpretations': lunar_node_interpretations, # 解釈も含める
+                'timezone': chart_info.get('timezone', '日本標準時 (UTC+9:00)'),
+                'house_system': chart_info.get('house_system', 'P'),
+                'house_system_jp': chart_info.get('house_system_jp', 'プラシダス')
             },
             'interpretations': interpretations if 'interpretations' in locals() else None,
             'aspect_grid': aspect_grid_data, # aspect_gridを'natal'キーの外に移動
@@ -413,6 +416,13 @@ def calculate():
                 'aspect_interpretations': transit_aspect_interpretations if 'transit_aspect_interpretations' in locals() else None,
             },
             'chart_svg': chart_svg, # chart_svg は natal の外のままにするか検討 (result.html の現状に合わせる)
+            'solar_arc_forecast': solar_arc_forecast, # ソーラーアーク予測データを追加
+            'secondary_progression': secondary_progression, # 二次進行法予測データを追加
+            'vernal_equinox_sabian': vernal_equinox_sabian_current, # 春分点データを追加
+            'summer_solstice_sabian': summer_solstice_sabian_current, # 夏至点データを追加
+            'autumnal_equinox_sabian': autumnal_equinox_sabian_current, # 秋分点データを追加
+            'winter_solstice_sabian': winter_solstice_sabian_current, # 冬至点データを追加
+            'current_year_for_seasonal': current_year, # 現在の年を追加
             'progression_data': secondary_progression if 'secondary_progression' in locals() else None,
             'equinox_data': equinox_data,
             'life_events': life_events,

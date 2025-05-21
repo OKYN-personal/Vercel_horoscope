@@ -229,8 +229,27 @@ def calculate_natal_chart(birth_date, birth_time, birth_place, latitude, longitu
         'longitude': longitude,
         'timezone': str(tz) if timezone_str else f"UTC{used_timezone_offset:+.1f}", # タイムゾーン名の表示を修正
         'house_system': house_system.decode('utf-8') if isinstance(house_system, bytes) else house_system,
-        'used_timezone_offset': used_timezone_offset # 実際に使われたオフセットも返す
+        'used_timezone_offset': used_timezone_offset, # 実際に使われたオフセットも返す
+        'jd_ut': jd_ut # ユリウス日も追加
     }
+    
+    # ハウスシステムの日本語名を追加
+    house_system_jp = {
+        'P': 'プラシダス', 
+        'K': 'コッホ', 
+        'O': 'ポルフィリウス',
+        'R': 'レジオモンタヌス', 
+        'C': 'カンパヌス', 
+        'E': '等分', 
+        'W': 'ホールサイン',
+        'B': 'アルカビチウス'
+    }
+    
+    # バイト型のハウスシステムコードを文字列に変換
+    house_system_code = house_system.decode('utf-8') if isinstance(house_system, bytes) else house_system
+    
+    # 日本語のハウスシステム名を設定
+    chart_info['house_system_jp'] = house_system_jp.get(house_system_code, f'不明なシステム（{house_system_code}）')
 
     swe.close()
     return positions, chart_info, cusps # cusps も返す

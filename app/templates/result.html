@@ -132,7 +132,7 @@
             より正確な結果を得るには、地名を主要都市名に変更するか、入力フォームで緯度経度を手動入力してください。
         </div>
         {% endif %}
-        <p>タイムゾーン: {{ result.natal.timezone | default('N/A') }} / ハウスシステム: {{ result.natal.house_system | default('N/A') }}</p>
+        <p>タイムゾーン: {{ result.natal.chart_info.timezone | default('日本標準時 (UTC+9:00)') }} / ハウスシステム: {{ result.natal.chart_info.house_system_jp | default('プラシダス') }}</p>
         {% if result.transit_date %}<p>トランジット日時: {{ result.transit_date }}</p>{% endif %}
     </div>
 
