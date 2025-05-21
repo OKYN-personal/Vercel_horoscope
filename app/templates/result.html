@@ -467,9 +467,17 @@
     <div class="result-section" id="seasonal-sabian-symbols">
         <h2>四季のサビアンシンボル ({{ result.current_year_for_seasonal }}年 東京基準)</h2>
 
-        {% macro display_seasonal_sabian(title, sabian_data, year) %}
+        {% macro display_seasonal_sabian(title, sabian_data, chart_svg, year) %}
             {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
                 <h3>{{ year }}年 {{ title }}</h3>
+                
+                <!-- ホロスコープチャート表示 -->
+                {% if chart_svg %}
+                <div class="chart-container" style="text-align: center; margin-bottom: 20px;">
+                    {{ chart_svg | safe }}
+                </div>
+                {% endif %}
+                
                 <table class="positions-table forecast-table">
                     <thead>
                         <tr>
@@ -493,10 +501,10 @@
             {% endif %} {# Removed extra <p> for not found, as it's part of the macro now if needed #}
         {% endmacro %}
 
-        {{ display_seasonal_sabian('春分点', result.vernal_equinox_sabian, result.current_year_for_seasonal) }}
-        {{ display_seasonal_sabian('夏至点', result.summer_solstice_sabian, result.current_year_for_seasonal) }}
-        {{ display_seasonal_sabian('秋分点', result.autumnal_equinox_sabian, result.current_year_for_seasonal) }}
-        {{ display_seasonal_sabian('冬至点', result.winter_solstice_sabian, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('春分点', result.vernal_equinox_sabian, result.seasonal_charts.vernal_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('夏至点', result.summer_solstice_sabian, result.seasonal_charts.summer_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('秋分点', result.autumnal_equinox_sabian, result.seasonal_charts.autumnal_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('冬至点', result.winter_solstice_sabian, result.seasonal_charts.winter_chart_svg, result.current_year_for_seasonal) }}
     </div>
 
     {% if result.transit %}

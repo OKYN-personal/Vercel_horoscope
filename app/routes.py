@@ -321,15 +321,46 @@ def calculate():
 
         # --- 年間イベントのサビアンシンボル計算 (現在の年を使用) ---
         current_year = datetime.now().year
-        # solar_arc_forecast の再計算は、必要に応じて行う。ここでは natal_positions を使った初期計算を流用。
-        # solar_arc_forecast = calculate_solar_arc_sabian_forecast(
-        #     birth_date, birth_time, birth_place,
-        #     latitude, longitude, timezone_offset
-        # )
-        vernal_equinox_sabian_current = calculate_vernal_equinox_sabian(current_year)
-        summer_solstice_sabian_current = calculate_summer_solstice_sabian(current_year)
-        autumnal_equinox_sabian_current = calculate_autumnal_equinox_sabian(current_year)
-        winter_solstice_sabian_current = calculate_winter_solstice_sabian(current_year)
+        
+        # 春分点データ
+        vernal_equinox_data = calculate_vernal_equinox_sabian(current_year)
+        vernal_equinox_sabian_current = vernal_equinox_data['sabian_data']
+        vernal_equinox_chart_svg = generate_chart_svg(
+            vernal_equinox_data['positions'], 
+            vernal_equinox_data['cusps'], 
+            vernal_equinox_data['aspects'],
+            vernal_equinox_data['chart_info']
+        )
+        
+        # 夏至点データ
+        summer_solstice_data = calculate_summer_solstice_sabian(current_year)
+        summer_solstice_sabian_current = summer_solstice_data['sabian_data']
+        summer_solstice_chart_svg = generate_chart_svg(
+            summer_solstice_data['positions'], 
+            summer_solstice_data['cusps'], 
+            summer_solstice_data['aspects'],
+            summer_solstice_data['chart_info']
+        )
+        
+        # 秋分点データ
+        autumnal_equinox_data = calculate_autumnal_equinox_sabian(current_year)
+        autumnal_equinox_sabian_current = autumnal_equinox_data['sabian_data']
+        autumnal_equinox_chart_svg = generate_chart_svg(
+            autumnal_equinox_data['positions'], 
+            autumnal_equinox_data['cusps'], 
+            autumnal_equinox_data['aspects'],
+            autumnal_equinox_data['chart_info']
+        )
+        
+        # 冬至点データ
+        winter_solstice_data = calculate_winter_solstice_sabian(current_year)
+        winter_solstice_sabian_current = winter_solstice_data['sabian_data']
+        winter_solstice_chart_svg = generate_chart_svg(
+            winter_solstice_data['positions'], 
+            winter_solstice_data['cusps'], 
+            winter_solstice_data['aspects'],
+            winter_solstice_data['chart_info']
+        )
         # --- ここまで年間イベント計算 ---
 
         # equinox_data の定義 (テンプレートで使用)
@@ -339,6 +370,14 @@ def calculate():
             'autumnal': autumnal_equinox_sabian_current,
             'winter': winter_solstice_sabian_current,
             'year': current_year
+        }
+
+        # 四季のサビアンシンボルのホロスコープチャート
+        seasonal_charts = {
+            'vernal_chart_svg': vernal_equinox_chart_svg,
+            'summer_chart_svg': summer_solstice_chart_svg,
+            'autumnal_chart_svg': autumnal_equinox_chart_svg,
+            'winter_chart_svg': winter_solstice_chart_svg
         }
 
         # ライフイベント予測の生成
@@ -366,13 +405,14 @@ def calculate():
             'interpretations': interpretations,
             'solar_arc_forecast': solar_arc_forecast, # PDFに追加
             'secondary_progression': secondary_progression, # 二次進行法のデータを追加
-            'vernal_equinox_sabian': vernal_equinox_sabian, # PDFに追加
-            'summer_solstice_sabian': summer_solstice_sabian, # PDFに追加
-            'autumnal_equinox_sabian': autumnal_equinox_sabian, # PDFに追加
-            'winter_solstice_sabian': winter_solstice_sabian, # PDFに追加
+            'vernal_equinox_sabian': vernal_equinox_sabian_current, # PDFに追加
+            'summer_solstice_sabian': summer_solstice_sabian_current, # PDFに追加
+            'autumnal_equinox_sabian': autumnal_equinox_sabian_current, # PDFに追加
+            'winter_solstice_sabian': winter_solstice_sabian_current, # PDFに追加
             'current_year_for_seasonal': current_year, # PDFに年も渡す (キー名を変更)
             'forecast_years': forecast_years,
-            'life_events': life_events
+            'life_events': life_events,
+            'seasonal_charts': seasonal_charts  # 四季のホロスコープチャートを追加
         }
         if transit_positions:
             pdf_result_data['transit'] = {
@@ -427,7 +467,8 @@ def calculate():
             'equinox_data': equinox_data,
             'life_events': life_events,
             'forecast_years': forecast_years,
-            'pdf_url': pdf_url
+            'pdf_url': pdf_url,
+            'seasonal_charts': seasonal_charts  # 四季のホロスコープチャートをテンプレートにも渡す
         }
 
         current_app.logger.debug(f"Data passed to template result: {result_data_for_template['interpretations']}") # ★デバッグログ追加

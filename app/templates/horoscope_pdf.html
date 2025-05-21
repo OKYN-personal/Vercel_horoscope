@@ -425,13 +425,21 @@
         </div>
     </div>
 
-    <!-- 四季のサビアンシンボル MOVED HERE -->
+    <!-- 四季のサビアンシンボル -->
     <div class="result-section" id="seasonal-sabian-symbols-pdf">
         <h3>四季のサビアンシンボル ({{ current_year_for_seasonal }}年 東京基準)</h3>
 
-        {% macro display_seasonal_sabian_pdf(title, sabian_data, year) %}
+        {% macro display_seasonal_sabian_pdf(title, sabian_data, chart_svg, year) %}
             {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
                 <h4>{{ year }}年 {{ title }}</h4>
+                
+                <!-- ホロスコープチャート表示 -->
+                {% if chart_svg %}
+                <div class="chart-container" style="text-align: center; margin-bottom: 20px;">
+                    {{ chart_svg | safe }}
+                </div>
+                {% endif %}
+                
                 <table class="sabian-table seasonal-sabian-table positions-table"> {# positions-tableクラスも適用してスタイルを統一 #}
                     <thead>
                         <tr>
@@ -457,10 +465,10 @@
             {% endif %}
         {% endmacro %}
 
-        {{ display_seasonal_sabian_pdf('春分点', vernal_equinox_sabian, current_year_for_seasonal) }}
-        {{ display_seasonal_sabian_pdf('夏至点', summer_solstice_sabian, current_year_for_seasonal) }}
-        {{ display_seasonal_sabian_pdf('秋分点', autumnal_equinox_sabian, current_year_for_seasonal) }}
-        {{ display_seasonal_sabian_pdf('冬至点', winter_solstice_sabian, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('春分点', vernal_equinox_sabian, seasonal_charts.vernal_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('夏至点', summer_solstice_sabian, seasonal_charts.summer_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('秋分点', autumnal_equinox_sabian, seasonal_charts.autumnal_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('冬至点', winter_solstice_sabian, seasonal_charts.winter_chart_svg, current_year_for_seasonal) }}
     </div>
 
     <!-- ソーラーアーク予測 -->

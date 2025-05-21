@@ -525,6 +525,9 @@ def calculate_celestial_sabian_at_event(jd_ut_event: float, event_name: str):
     event_planet_data = []
     logging.debug(f"Calculating Sabian symbols for {event_name} at JD_UT: {jd_ut_event}")
 
+    # ポジションの計算結果をディクショナリ形式でも保持
+    event_positions = {}
+
     for planet_name in PLANETS_FOR_FORECAST:
         planet_id = PLANETS.get(planet_name)
         if planet_id is None:
@@ -538,6 +541,7 @@ def calculate_celestial_sabian_at_event(jd_ut_event: float, event_name: str):
         sabian_symbol = get_sabian_symbol(longitude)
         logging.debug(f"{event_name} Data for {planet_name}: lon={longitude}, sabian='{sabian_symbol}'")
 
+        # リスト形式のデータ
         event_planet_data.append({
             'name': planet_name,
             'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name),
@@ -549,9 +553,91 @@ def calculate_celestial_sabian_at_event(jd_ut_event: float, event_name: str):
             'sabian_symbol': sabian_symbol,
             'glyph': get_planet_glyph(planet_name)
         })
+        
+        # ディクショナリ形式のデータ（ホロスコープチャート生成用）
+        event_positions[planet_name] = {
+            'longitude': longitude,
+            'sign': planet_details['sign'],
+            'sign_jp': planet_details['sign_jp'],
+            'degree': planet_details['degree'],
+            'degree_formatted': planet_details['degree_formatted'],
+            'glyph': get_planet_glyph(planet_name),
+            'name_jp': PLANET_NAMES_JP.get(planet_name, planet_name)
+        }
+    
+    # ASC/MCの計算（東京の緯度経度を使用）
+    latitude_tokyo = 35.6895
+    longitude_tokyo = 139.6917
+    house_system = b'P'  # Placidus
+    
+    try:
+        cusps, ascmc = swe.houses_ex(jd_ut_event, latitude_tokyo, longitude_tokyo, house_system)
+        
+        # ASC, MC を positions に追加
+        for point_name, point_index in POINTS.items():
+            # ascmc のインデックス: 0=ASC, 1=MC
+            lon = ascmc[point_index]
+            planet_details = get_planet_details(lon, point_name)
+            
+            event_positions[point_name] = {
+                'longitude': lon,
+                'sign': planet_details['sign'],
+                'sign_jp': planet_details['sign_jp'],
+                'degree': planet_details['degree'],
+                'degree_formatted': planet_details['degree_formatted'],
+                'glyph': get_planet_glyph(point_name),
+                'name_jp': PLANET_NAMES_JP.get(point_name, point_name)
+            }
+    except Exception as e:
+        logging.error(f"Error calculating houses for seasonal chart: {e}")
+    
+    # アスペクトの計算
+    aspects = calculate_aspects(event_positions)
+    
+    # チャート情報の生成
+    chart_info = {
+        'house_system': 'Placidus',
+        'house_system_jp': 'プラシダス',
+        'timezone': 'UTC+9:00',
+        'event_name': event_name
+    }
     
     swe.close()
-    return event_planet_data
+    return {
+        'sabian_data': event_planet_data,  # サビアンシンボル情報（リスト形式）
+        'positions': event_positions,      # 天体位置情報（ディクショナリ形式）
+        'aspects': aspects,                # アスペクト情報
+        'chart_info': chart_info,          # チャート設定情報
+        'cusps': cusps                     # ハウスカスプ情報
+    }
+
+def calculate_vernal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の春分点の各天体のサビアンシンボルとホロスコープチャートデータを計算 (東京基準)"""
+    # 春分点 (太陽黄経0度) のユリウス日(UT)を見つける
+    jd_vernal_equinox_ut = find_solar_longitude_event_jd_ut(year, 0.0)
+    
+    # その瞬間の各天体のサビアン情報とチャートデータを計算
+    vernal_equinox_data = calculate_celestial_sabian_at_event(jd_vernal_equinox_ut, f"{year}年 春分点")
+    
+    return vernal_equinox_data
+
+def calculate_summer_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の夏至点の各天体のサビアンシンボルとホロスコープチャートデータを計算 (東京基準)"""
+    jd_summer_solstice_ut = find_solar_longitude_event_jd_ut(year, 90.0)
+    summer_solstice_data = calculate_celestial_sabian_at_event(jd_summer_solstice_ut, f"{year}年 夏至点")
+    return summer_solstice_data
+
+def calculate_autumnal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の秋分点の各天体のサビアンシンボルとホロスコープチャートデータを計算 (東京基準)"""
+    jd_autumnal_equinox_ut = find_solar_longitude_event_jd_ut(year, 180.0)
+    autumnal_equinox_data = calculate_celestial_sabian_at_event(jd_autumnal_equinox_ut, f"{year}年 秋分点")
+    return autumnal_equinox_data
+
+def calculate_winter_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
+    """指定された年の冬至点の各天体のサビアンシンボルとホロスコープチャートデータを計算 (東京基準)"""
+    jd_winter_solstice_ut = find_solar_longitude_event_jd_ut(year, 270.0)
+    winter_solstice_data = calculate_celestial_sabian_at_event(jd_winter_solstice_ut, f"{year}年 冬至点")
+    return winter_solstice_data
 
 def calculate_solar_arc_sabian_forecast(birth_date, birth_time, birth_place, latitude, longitude, timezone_offset_input, years_to_forecast=3):
     """ソーラーアーク法によるサビアン予測 (年齢計算を修正)"""
@@ -626,37 +712,6 @@ def calculate_solar_arc_sabian_forecast(birth_date, birth_time, birth_place, lat
 
     swe.close()
     return forecast_data
-
-def calculate_vernal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
-    """指定された年の春分点の各天体のサビアンシンボルを計算 (東京基準)"""
-    # swe.set_ephe_path('ephe') # calculate_celestial_sabian_at_event 内で呼ばれるので不要かも
-    
-    # 春分点 (太陽黄経0度) のユリウス日(UT)を見つける
-    jd_vernal_equinox_ut = find_solar_longitude_event_jd_ut(year, 0.0)
-    
-    # その瞬間の各天体のサビアン情報を計算
-    vernal_equinox_data = calculate_celestial_sabian_at_event(jd_vernal_equinox_ut, f"{year}年 春分点")
-    
-    # swe.close() # calculate_celestial_sabian_at_event 内で呼ばれる
-    return vernal_equinox_data
-
-def calculate_summer_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
-    """指定された年の夏至点の各天体のサビアンシンボルを計算 (東京基準)"""
-    jd_summer_solstice_ut = find_solar_longitude_event_jd_ut(year, 90.0)
-    summer_solstice_data = calculate_celestial_sabian_at_event(jd_summer_solstice_ut, f"{year}年 夏至点")
-    return summer_solstice_data
-
-def calculate_autumnal_equinox_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
-    """指定された年の秋分点の各天体のサビアンシンボルを計算 (東京基準)"""
-    jd_autumnal_equinox_ut = find_solar_longitude_event_jd_ut(year, 180.0)
-    autumnal_equinox_data = calculate_celestial_sabian_at_event(jd_autumnal_equinox_ut, f"{year}年 秋分点")
-    return autumnal_equinox_data
-
-def calculate_winter_solstice_sabian(year, latitude_tokyo=35.6895, longitude_tokyo=139.6917, timezone_offset_tokyo=9.0):
-    """指定された年の冬至点の各天体のサビアンシンボルを計算 (東京基準)"""
-    jd_winter_solstice_ut = find_solar_longitude_event_jd_ut(year, 270.0)
-    winter_solstice_data = calculate_celestial_sabian_at_event(jd_winter_solstice_ut, f"{year}年 冬至点")
-    return winter_solstice_data
 
 def calculate_secondary_progression(birth_date, birth_time, birth_place, latitude, longitude, 
                                     timezone_offset_input, years_to_forecast=3):
