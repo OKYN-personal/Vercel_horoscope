@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ pdf_title }}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; font-size: 10pt; line-height: 1.6; }
+        h1, h2, h3 { color: #333; page-break-after: avoid; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1em; page-break-inside: avoid; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .section { margin-bottom: 2em; padding-top: 1em; border-top: 1px solid #eee; page-break-before: auto; }
+        .badge { padding: 3px 6px; border-radius: 3px; font-size: 0.8em; }
+        .badge-danger { background-color: #dc3545; color: white; }
+        .footer { font-size: 8pt; text-align: center; color: #777; position: fixed; bottom: 0; width:100%; }
+    </style>
+</head>
+<body>
+    <h1>{{ pdf_title }}</h1>
+    <p>生成日時: {{ generated_at }}</p>
+
+    <div class="section">
+        <h2>基本情報</h2>
+        <table>
+            <tr>
+                <th>生年月日</th>
+                <td>{{ birth_date }}</td>
+            </tr>
+            <tr>
+                <th>出生時間</th>
+                <td>{{ birth_time }}</td>
+            </tr>
+            <tr>
+                <th>出生地</th>
+                <td>{{ birth_place }}</td>
+            </tr>
+            <tr>
+                <th>緯度</th>
+                <td>{{ latitude }}</td>
+            </tr>
+            <tr>
+                <th>経度</th>
+                <td>{{ longitude }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>月のノード位置</h2>
+        
+        <h3>ドラゴンヘッド（北ノード）</h3>
+        {% if lunar_nodes and 'True_Node' in lunar_nodes %}
+        <p>
+            <strong>トゥルーノード（実位置）:</strong> 
+            {{ lunar_nodes.True_Node.glyph }} {{ lunar_nodes.True_Node.sign_jp }} {{ lunar_nodes.True_Node.degree_formatted }}
+            {% if lunar_nodes.True_Node.retrograde %}<span class="badge badge-danger">逆行</span>{% endif %}
+        </p>
+        <p>
+            <strong>ミーンノード（平均位置）:</strong> 
+            {{ lunar_nodes.Mean_Node.glyph }} {{ lunar_nodes.Mean_Node.sign_jp }} {{ lunar_nodes.Mean_Node.degree_formatted }}
+            {% if lunar_nodes.Mean_Node.retrograde %}<span class="badge badge-danger">逆行</span>{% endif %}
+        </p>
+        {% else %}
+        <p>データが見つかりませんでした。</p>
+        {% endif %}
+        
+        <h3>ドラゴンテイル（南ノード）</h3>
+        {% if lunar_nodes and 'Dragon_Tail' in lunar_nodes %}
+        <p>
+            {{ lunar_nodes.Dragon_Tail.glyph }} {{ lunar_nodes.Dragon_Tail.sign_jp }} {{ lunar_nodes.Dragon_Tail.degree_formatted }}
+        </p>
+        <p><small>※ドラゴンテイルはドラゴンヘッドの正反対（180度）の位置にあります</small></p>
+        {% else %}
+        <p>データが見つかりませんでした。</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>月のノードの意味</h2>
+        
+        <h3>ドラゴンヘッド（北ノード）の意味</h3>
+        {% if lunar_node_interpretations and 'True_Node' in lunar_node_interpretations %}
+        <p>{{ lunar_node_interpretations.True_Node }}</p>
+        {% else %}
+        <p>この星座でのドラゴンヘッドの解釈は準備中です。</p>
+        {% endif %}
+        
+        <h3>ドラゴンテイル（南ノード）の意味</h3>
+        {% if lunar_node_interpretations and 'Dragon_Tail' in lunar_node_interpretations %}
+        <p>{{ lunar_node_interpretations.Dragon_Tail }}</p>
+        {% else %}
+        <p>この星座でのドラゴンテイルの解釈は準備中です。</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>人生の課題とバランス</h2>
+        {% if lunar_nodes and 'True_Node' in lunar_nodes and 'Dragon_Tail' in lunar_nodes %}
+        <p>あなたの魂の進化の方向性として、<strong>{{ lunar_nodes.Dragon_Tail.sign_jp }}</strong>の特質から<strong>{{ lunar_nodes.True_Node.sign_jp }}</strong>の特質に向かう成長が示されています。</p>
+        
+        <h3>バランスを見つける</h3>
+        <p>理想的な状態は、ドラゴンテイル（前世からの強み）を完全に捨て去るのではなく、ドラゴンヘッド（今世の目標）の特質を発達させながら両者のバランスを取ることです。</p>
+        
+        <h3>具体的な実践方法</h3>
+        <ul>
+            <li><strong>{{ lunar_nodes.True_Node.sign_jp }}</strong>の特質を意識的に取り入れる活動や習慣を生活に取り入れましょう。</li>
+            <li>新しい挑戦が恐ろしく感じる時は、それはあなたが成長のための正しい道にいる兆候かもしれません。</li>
+            <li><strong>{{ lunar_nodes.Dragon_Tail.sign_jp }}</strong>の特質に頼りすぎていると感じたら、意識的に別のアプローチを試みましょう。</li>
+        </ul>
+        {% else %}
+        <p>人生の課題とバランスの解釈は準備中です。</p>
+        {% endif %}
+    </div>
+</body>
+</html> 

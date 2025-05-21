@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}PWA動作テスト{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="text-center mt-4 mb-4">ホロスコープPWA機能テスト</h1>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0">PWA動作状態</h2>
+                </div>
+                <div class="card-body">
+                    <div class="pwa-status">
+                        <p><strong>Service Worker:</strong> <span id="sw-status">確認中...</span></p>
+                        <p><strong>インストール可能:</strong> <span id="install-status">確認中...</span></p>
+                        <p><strong>ネットワーク状態:</strong> <span id="network-status">確認中...</span></p>
+                        <p><strong>表示モード:</strong> <span id="display-mode">確認中...</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h2 class="h5 mb-0">オフラインテスト</h2>
+                </div>
+                <div class="card-body">
+                    <p>ブラウザの開発者ツールからネットワーク接続をオフラインに設定し、このページをリロードしてみてください。キャッシュから正しく読み込まれれば成功です。</p>
+                    <button class="btn btn-primary" id="test-cache">キャッシュテスト</button>
+                    <div id="cache-result" class="mt-3"></div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h2 class="h5 mb-0">インストール</h2>
+                </div>
+                <div class="card-body">
+                    <p>条件が揃うと「アプリをインストール」ボタンが表示されます。PWAとしてインストールするには：</p>
+                    <ol>
+                        <li>Chrome/Edgeでアクセスする</li>
+                        <li>数回アプリを使用する</li>
+                        <li>表示されるインストールプロンプトで「インストール」を選択</li>
+                    </ol>
+                    <button class="btn btn-success" id="install-button" style="display: none;">アプリをインストール</button>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h2 class="h5 mb-0">プッシュ通知テスト</h2>
+                </div>
+                <div class="card-body">
+                    <p id="push-status">プッシュ通知の状態を確認中...</p>
+                    
+                    <div class="mb-3">
+                        <button class="btn btn-primary" id="subscribe-button">プッシュ通知を許可する</button>
+                        <button class="btn btn-secondary" id="unsubscribe-button" style="display: none;">通知を解除する</button>
+                    </div>
+                    
+                    <div id="notification-test" style="display: none;">
+                        <h3 class="h6 mt-3">通知テスト</h3>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" id="notification-title" placeholder="通知タイトル" value="ホロスコープアプリからのお知らせ">
+                        </div>
+                        <div class="mb-2">
+                            <textarea class="form-control" id="notification-message" placeholder="通知メッセージ" rows="2">これはテスト通知です。プッシュ通知機能が正常に動作しています。</textarea>
+                        </div>
+                        <button class="btn btn-success" id="send-notification">テスト通知を送信</button>
+                    </div>
+                    
+                    <div id="notification-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Service Worker状態確認
+    if ('serviceWorker' in navigator) {
+        document.getElementById('sw-status').textContent = 'サポート済み';
+        navigator.serviceWorker.getRegistration().then(function(registration) {
+            if (registration) {
+                document.getElementById('sw-status').textContent = '有効 (スコープ: ' + registration.scope + ')';
+            } else {
+                document.getElementById('sw-status').textContent = '登録されていません';
+            }
+        });
+    } else {
+        document.getElementById('sw-status').textContent = '未サポート';
+    }
+    
+    // ネットワーク状態確認
+    function updateNetworkStatus() {
+        const status = navigator.onLine ? 'オンライン' : 'オフライン';
+        document.getElementById('network-status').textContent = status;
+        document.getElementById('network-status').className = navigator.onLine ? 'text-success' : 'text-danger';
+    }
+    updateNetworkStatus();
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    
+    // 表示モード確認
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('display-mode').textContent = 'スタンドアロン (PWAとしてインストール済み)';
+    } else if (window.matchMedia('(display-mode: fullscreen)').matches) {
+        document.getElementById('display-mode').textContent = 'フルスクリーン';
+    } else if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+        document.getElementById('display-mode').textContent = 'ミニマルUI';
+    } else {
+        document.getElementById('display-mode').textContent = 'ブラウザ';
+    }
+    
+    // インストール状態確認とボタン制御
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('install-status').textContent = 'インストール可能です';
+        const installButton = document.getElementById('install-button');
+        installButton.style.display = 'block';
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            document.getElementById('install-status').textContent = 
+                outcome === 'accepted' ? 'インストールされました' : 'インストールはキャンセルされました';
+            deferredPrompt = null;
+            installButton.style.display = 'none';
+        });
+    });
+    
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('install-status').textContent = 'インストール済み';
+    } else {
+        document.getElementById('install-status').textContent = 'ブラウザ表示中';
+    }
+    
+    // キャッシュテスト
+    document.getElementById('test-cache').addEventListener('click', async () => {
+        const cacheResult = document.getElementById('cache-result');
+        try {
+            // キャッシュ内の全てのキャッシュ名を取得
+            const cacheNames = await caches.keys();
+            const cacheItems = [];
+            
+            // 各キャッシュ内のアイテムを取得
+            for (const name of cacheNames) {
+                const cache = await caches.open(name);
+                const requests = await cache.keys();
+                cacheItems.push({
+                    name: name,
+                    count: requests.length,
+                    urls: requests.map(r => r.url).slice(0, 3) // 先頭3つだけ表示
+                });
+            }
+            
+            // 結果表示
+            let html = '<div class="alert alert-success">キャッシュ確認結果:</div>';
+            if (cacheItems.length === 0) {
+                html += '<div class="alert alert-warning">キャッシュが見つかりませんでした。</div>';
+            } else {
+                html += '<ul class="list-group">';
+                cacheItems.forEach(item => {
+                    html += `<li class="list-group-item">
+                        <strong>${item.name}</strong>: ${item.count}アイテム
+                        <small>${item.urls.length > 0 ? '例: ' + item.urls.join(', ') : ''}</small>
+                    </li>`;
+                });
+                html += '</ul>';
+            }
+            cacheResult.innerHTML = html;
+        } catch (error) {
+            cacheResult.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+        }
+    });
+    
+    // プッシュ通知関連機能
+    const pushStatus = document.getElementById('push-status');
+    const subscribeButton = document.getElementById('subscribe-button');
+    const unsubscribeButton = document.getElementById('unsubscribe-button');
+    const notificationTest = document.getElementById('notification-test');
+    const sendNotificationButton = document.getElementById('send-notification');
+    const notificationResult = document.getElementById('notification-result');
+    
+    // プッシュ通知のサポート状況確認
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        pushStatus.textContent = 'このブラウザはプッシュ通知をサポートしていません。';
+        subscribeButton.disabled = true;
+        return;
+    }
+    
+    // 購読状態チェック
+    function checkSubscription() {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.pushManager.getSubscription().then(subscription => {
+                if (subscription) {
+                    pushStatus.textContent = 'プッシュ通知は有効です。';
+                    pushStatus.className = 'text-success';
+                    subscribeButton.style.display = 'none';
+                    unsubscribeButton.style.display = 'inline-block';
+                    notificationTest.style.display = 'block';
+                } else {
+                    pushStatus.textContent = 'プッシュ通知は許可されていません。';
+                    pushStatus.className = 'text-secondary';
+                    subscribeButton.style.display = 'inline-block';
+                    unsubscribeButton.style.display = 'none';
+                    notificationTest.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // 購読処理
+    subscribeButton.addEventListener('click', () => {
+        navigator.serviceWorker.ready
+            .then(registration => {
+                // VAPIDキー（サーバーで生成したものをここに設定）
+                const vapidPublicKey = 'BLGrDkBXpHE1yt18jo9v7-SxDhxCQYQxqTN5rQzemDXOBEqjCpgj5MlK0JWoA8RAGg2NDcoUkXl-xY4kOrWu3QI';
+                const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+                
+                // プッシュマネージャーに購読リクエスト
+                return registration.pushManager.subscribe({
+                    userVisibleOnly: true,  // 通知は必ずユーザーに表示
+                    applicationServerKey: applicationServerKey
+                });
+            })
+            .then(subscription => {
+                // サーバーに購読情報を送信
+                return fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(subscription)
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('サーバーへの購読登録に失敗しました。');
+                }
+                notificationResult.innerHTML = '<div class="alert alert-success">プッシュ通知の購読に成功しました！</div>';
+                checkSubscription();
+            })
+            .catch(error => {
+                notificationResult.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+            });
+    });
+    
+    // 購読解除処理
+    unsubscribeButton.addEventListener('click', () => {
+        navigator.serviceWorker.ready
+            .then(registration => {
+                return registration.pushManager.getSubscription();
+            })
+            .then(subscription => {
+                if (!subscription) {
+                    notificationResult.innerHTML = '<div class="alert alert-warning">購読が見つかりませんでした。</div>';
+                    return;
+                }
+                
+                // サーバーに購読解除リクエスト
+                return fetch('/api/unsubscribe', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ endpoint: subscription.endpoint })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('サーバーへの購読解除リクエストに失敗しました。');
+                    }
+                    // ブラウザでの購読も解除
+                    return subscription.unsubscribe();
+                });
+            })
+            .then(result => {
+                if (result !== undefined && result === true) {
+                    notificationResult.innerHTML = '<div class="alert alert-success">プッシュ通知の購読を解除しました。</div>';
+                    checkSubscription();
+                }
+            })
+            .catch(error => {
+                notificationResult.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+            });
+    });
+    
+    // テスト通知送信
+    sendNotificationButton.addEventListener('click', () => {
+        const title = document.getElementById('notification-title').value;
+        const message = document.getElementById('notification-message').value;
+        
+        if (!title || !message) {
+            notificationResult.innerHTML = '<div class="alert alert-warning">タイトルとメッセージを入力してください。</div>';
+            return;
+        }
+        
+        fetch('/api/send-notification', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: title,
+                message: message,
+                icon: '/static/icons/icon-192x192.png',
+                tag: 'test-notification'
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('通知送信リクエストに失敗しました。');
+            }
+            return response.json();
+        })
+        .then(data => {
+            notificationResult.innerHTML = `<div class="alert alert-success">通知を送信しました！結果: 成功 ${data.result.success}/${data.result.total} 件</div>`;
+        })
+        .catch(error => {
+            notificationResult.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+        });
+    });
+    
+    // Base64をUint8Arrayに変換（WebPushで必要）
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+    
+    // 初期状態確認
+    checkSubscription();
+});
+</script>
+{% endblock %} 

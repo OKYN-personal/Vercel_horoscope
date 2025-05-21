@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ホロスコープ解釈</title>
+    <style>
+        /* 基本スタイル */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            line-height: 1.6;
+            margin: 1.5cm; /* PDF用の余白 */
+            font-size: 10pt;
+            color: #333;
+        }
+        h1 {
+            margin-bottom: 1em;
+            text-align: center;
+            color: #337ab7;
+            font-size: 20pt;
+        }
+        h2 {
+            color: #337ab7;
+            border-bottom: 2px solid #337ab7;
+            padding-bottom: 0.5em;
+            margin-top: 1.5em;
+            margin-bottom: 1em;
+            font-size: 16pt;
+        }
+        h3 {
+            color: #555;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            font-size: 14pt;
+            page-break-after: avoid; /* 見出しの後で改ページさせない */
+        }
+        /* セクションスタイル */
+        .result-section {
+            padding: 1em 0; /* 上下のパディング調整 */
+            margin-bottom: 1.5em;
+            page-break-inside: avoid; /* セクション内で改ページさせない */
+            border-top: 1px dashed #ccc; /* セクション区切り */
+        }
+        .result-section:first-of-type {
+            border-top: none; /* 最初のセクションの上線は不要 */
+        }
+        /* 表スタイル */
+        .positions-table, .aspect-grid-table, .sabian-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5em;
+        }
+        .positions-table th, .positions-table td,
+        .aspect-grid-table th, .aspect-grid-table td,
+        .sabian-table th, .sabian-table td {
+            padding: 0.5em;
+            border: 1px solid #ddd;
+            text-align: center;
+            font-size: 9pt; /* PDF用に少し小さく */
+        }
+        .positions-table th, .aspect-grid-table th, .sabian-table th {
+            background-color: #f0f8ff;
+            font-weight: bold;
+        }
+        .positions-table td:nth-child(1), .positions-table td:nth-child(2),
+        .sabian-table td:nth-child(1), .sabian-table td:nth-child(2) {
+            text-align: left;
+        }
+        .aspect-grid-table td {
+            min-width: 25px; /* PDF用に調整 */
+        }
+        /* アスペクトリスト */
+        .aspect-list {
+            padding-left: 0;
+            list-style: none;
+            columns: 2; /* 2カラム表示 */
+            column-gap: 2em;
+        }
+        .aspect-list li {
+            margin-bottom: 0.5em;
+            font-size: 0.9em;
+            page-break-inside: avoid;
+        }
+        /* 天体記号 */
+        .glyph {
+            font-family: "Astrological Symbols", "Apple Symbols", "Arial Unicode MS", sans-serif;
+            font-size: 1.2em;
+        }
+        /* アスペクト記号の色 */
+        .aspect-conj { color: green; }
+        .aspect-sext { color: blue; }
+        .aspect-squa { color: red; }
+        .aspect-trin { color: darkblue; }
+        .aspect-oppo { color: darkred; }
+        /* チャート */
+        .chart-container svg {
+            max-width: 100%;
+            height: auto;
+            page-break-inside: avoid;
+        }
+        /* 解釈テキスト */
+        .interpretation-text {
+            white-space: pre-wrap; 
+            font-size: 9pt;
+        }
+        .sabian-interpretation h4 {
+            font-size: 10pt;
+            margin-bottom: 0.3em;
+            page-break-after: avoid;
+        }
+        /* 解釈セクション */
+        .interpretation-item {
+            margin-bottom: 1.2em;
+            padding-bottom: 0.8em;
+            border-bottom: 1px dotted #eee;
+        }
+        .interpretation-item:last-child {
+            border-bottom: none;
+        }
+        .interpretation-item h4 {
+            margin-top: 0.5em;
+            margin-bottom: 0.3em;
+            color: #444;
+        }
+        /* アスペクト解釈 */
+        .aspect-interpretation {
+            margin-bottom: 1em;
+            padding: 0.5em;
+            border-left: 3px solid #f0f0f0;
+        }
+        .aspect-title {
+            font-weight: bold;
+            margin-bottom: 0.3em;
+            color: #333;
+        }
+        /* 目次 */
+        .toc {
+            margin-bottom: 2em;
+        }
+        .toc-item {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.5em;
+        }
+        .toc-number {
+            min-width: 1.5em;
+        }
+        .toc-title {
+            flex-grow: 1;
+        }
+        .toc-dots {
+            flex-grow: 1;
+            margin: 0 0.5em;
+            border-bottom: 1px dotted #ccc;
+        }
+        .toc-page {
+            text-align: right;
+        }
+        /* ページフッター */
+        .footer {
+            text-align: center;
+            margin-top: 2em;
+            font-size: 8pt;
+            color: #aaa;
+            border-top: 1px solid #eee;
+            padding-top: 1em;
+        }
+        /* 色分け */
+        .highlight-major {
+            background-color: #f8f8f8;
+        }
+        .bookmark-section {
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+    <h1>ホロスコープ解釈</h1>
+    <p style="text-align: center; margin-bottom: 1.5em;">生成日時: {{ generated_at }}</p>
+
+    <!-- 目次 -->
+    <div class="result-section" id="toc">
+        <h2>目次</h2>
+        <div class="toc">
+            <div class="toc-item">
+                <span class="toc-number">1.</span>
+                <span class="toc-title">基本情報</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">1</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">2.</span>
+                <span class="toc-title">天体の位置 (ネイタル)</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">1</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">3.</span>
+                <span class="toc-title">ホロスコープチャート</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">2</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">4.</span>
+                <span class="toc-title">アスペクト (ネイタル)</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">2</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">5.</span>
+                <span class="toc-title">天体のサイン解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">3</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">6.</span>
+                <span class="toc-title">天体のハウス解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">4</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">7.</span>
+                <span class="toc-title">アスペクト解説</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">5</span>
+            </div>
+            <div class="toc-item">
+                <span class="toc-number">8.</span>
+                <span class="toc-title">サビアンシンボル</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">6</span>
+            </div>
+            {% if solar_arc_forecast %}
+            <div class="toc-item">
+                <span class="toc-number">9.</span>
+                <span class="toc-title">ソーラーアーク予測</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">7</span>
+            </div>
+            {% endif %}
+            {% if secondary_progression %}
+            <div class="toc-item">
+                <span class="toc-number">{% if solar_arc_forecast %}10{% else %}9{% endif %}.</span>
+                <span class="toc-title">二次進行法予測</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">{% if solar_arc_forecast %}8{% else %}7{% endif %}</span>
+            </div>
+            {% endif %}
+            {% if transit is defined and transit %}
+            <div class="toc-item">
+                <span class="toc-number">{% if secondary_progression %}{% if solar_arc_forecast %}11{% else %}10{% endif %}{% else %}{% if solar_arc_forecast %}10{% else %}9{% endif %}{% endif %}.</span>
+                <span class="toc-title">トランジット情報</span>
+                <span class="toc-dots"></span>
+                <span class="toc-page">{% if secondary_progression %}{% if solar_arc_forecast %}9{% else %}8{% endif %}{% else %}{% if solar_arc_forecast %}8{% else %}7{% endif %}{% endif %}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="result-section" id="basic-info">
+        <h2>1. 基本情報</h2>
+        <p>生年月日: {{ birth_date }} {{ birth_time }}</p>
+        <p>出生地: {{ birth_place }} 
+            (緯度: {{ '%.2f'|format(natal.latitude) if natal.latitude is not none else 'N/A' }}, 
+             経度: {{ '%.2f'|format(natal.longitude) if natal.longitude is not none else 'N/A' }})
+        </p>
+        <p>タイムゾーン: {{ natal.timezone | default('日本標準時 (UTC+9:00)') }} / ハウスシステム: {{ natal.house_system_jp | default('プラシダス') }}</p>
+    </div>
+
+    <div class="result-section" id="natal-positions">
+        <h2>2. 天体の位置 (ネイタル)</h2>
+        <table class="positions-table">
+            <thead>
+                <tr>
+                    <th>天体</th>
+                    <th>サイン</th>
+                    <th>度数</th>
+                    <th>ハウス</th>
+                    <th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if natal.positions %}
+                    {% for planet_name, data in natal.positions.items() %}
+                    <tr>
+                        <td>{{ data.name_jp | default(planet_name) }}</td>
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                        <td>{{ data.house }}</td>
+                        <td><span class="glyph">{{ data.glyph }}</span></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="5">天体位置データがありません。</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="result-section" id="natal-chart">
+        <h2>3. ホロスコープチャート</h2>
+        <div class="chart-container" style="text-align: center;">
+            {% if chart_svg %}
+                {{ chart_svg | safe }} {# SVGを安全に描画 #}
+            {% else %}
+                <p style="color: #aaa;">（ホロスコープチャートの生成に失敗しました）</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="result-section" id="natal-aspects">
+        <h2>4. アスペクト (ネイタル)</h2>
+        {% if natal.aspects %}
+            <ul class="aspect-list">
+            {% for aspect in natal.aspects %}
+                <li>
+                    <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
+                    ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }})
+                    オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>ネイタルアスペクト情報がありません。</p>
+        {% endif %}
+        
+        <h3>アスペクトグリッド (ネイタル)</h3>
+        {% if aspect_grid and aspect_grid.planets and aspect_grid.grid %}
+            <table class="aspect-grid-table">
+                <thead>
+                    <tr>
+                        <th></th> {# 左上の空セル #}
+                        {% for p_name in aspect_grid.planets %}
+                            <th><span class="glyph">{{ natal.positions[p_name].glyph if p_name in natal.positions else p_name }}</span></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p1_name in aspect_grid.planets %}
+                        <tr>
+                            <th><span class="glyph">{{ natal.positions[p1_name].glyph if p1_name in natal.positions else p1_name }}</span></th>
+                            {% for p2_name in aspect_grid.planets %}
+                                {% set cell_value = aspect_grid.grid[p1_name][p2_name] %}
+                                <td class="aspect-{{ cell_value.replace('☌','conj').replace('∗','sext').replace('□','squa').replace('△','trin').replace('☍','oppo') if cell_value and cell_value != 'X' else '' }}">
+                                    <span class="glyph">{{ cell_value }}</span>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>アスペクトグリッド情報がありません。</p>
+        {% endif %}
+    </div>
+    
+    <!-- 解釈 - 各セクションをブックマークセクションにする -->
+    <div class="bookmark-section result-section" id="sign-interpretations">
+        <h2>5. 天体のサイン解説</h2>
+        <div class="interpretation">
+            {% if interpretations and interpretations.planet_in_sign %}
+                {% for planet_key, interp_data in interpretations.planet_in_sign.items() %}
+                <div class="interpretation-item">
+                    <h4><span class="glyph">{{ natal.positions[planet_key].glyph }}</span> {{ interp_data.key }} 解説</h4>
+                    <p class="interpretation-text">{{ interp_data.text }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                 <p>天体のサイン解釈情報がありません。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bookmark-section result-section" id="house-interpretations">
+        <h2>6. 天体のハウス解説</h2>
+        <div class="interpretation">
+             {% if interpretations and interpretations.planet_in_house %}
+                {% for planet_key, interp_data in interpretations.planet_in_house.items() %}
+                <div class="interpretation-item">
+                    <h4><span class="glyph">{{ natal.positions[planet_key].glyph }}</span> {{ interp_data.key }} 解説</h4>
+                    <p class="interpretation-text">{{ interp_data.text }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                 <p>天体のハウス解釈情報がありません。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bookmark-section result-section" id="aspect-interpretations">
+        <h2>7. アスペクト解説</h2>
+        
+        <!-- メジャーアスペクトの解説 -->
+        <h3>主要アスペクト</h3>
+        <div class="interpretation">
+            {% if interpretations and interpretations.aspects %}
+                {% for aspect in interpretations.aspects %}
+                    {% if aspect.is_major %}
+                    <div class="interpretation-item aspect-interpretation highlight-major">
+                        <div class="aspect-title">
+                            <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                            <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <p class="interpretation-text">{{ aspect.text }}</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p>ネイタルアスペクトの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+        
+        <!-- マイナーアスペクトの解説 -->
+        <h3>マイナーアスペクト</h3>
+        <div class="interpretation">
+            {% if interpretations and interpretations.aspects %}
+                {% set has_minor_aspects = false %}
+                {% for aspect in interpretations.aspects %}
+                    {% if not aspect.is_major %}
+                    {% set has_minor_aspects = true %}
+                    <div class="interpretation-item aspect-interpretation">
+                        <div class="aspect-title">
+                            <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                            <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <p class="interpretation-text">{{ aspect.text }}</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if not has_minor_aspects %}
+                <p style="color: #888; font-style: italic;">マイナーアスペクトはありません。</p>
+                {% endif %}
+            {% else %}
+                <p>ネイタルアスペクトの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bookmark-section result-section" id="sabian-symbols">
+        <h2>8. サビアンシンボル</h2>
+        <div class="interpretation">
+            {% if natal.sabian %}
+                {% for planet, sabian_data in natal.sabian.items() %}
+                <div class="sabian-interpretation interpretation-item">
+                    <h4>
+                        <span class="glyph">{{ natal.positions[planet].glyph }}</span>
+                        {{ natal.positions[planet].name_jp }}のサビアンシンボル: {{ sabian_data.symbol }}
+                    </h4>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>ネイタルサビアンシンボル情報がありません。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 四季のサビアンシンボル -->
+    <div class="result-section" id="seasonal-sabian-symbols-pdf">
+        <h3>四季のサビアンシンボル ({{ current_year_for_seasonal }}年 東京基準)</h3>
+
+        {% macro display_seasonal_sabian_pdf(title, sabian_data, chart_svg, year) %}
+            {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
+                <h4>{{ year }}年 {{ title }}</h4>
+                
+                <!-- ホロスコープチャート表示 -->
+                {% if chart_svg %}
+                <div class="chart-container" style="text-align: center; margin-bottom: 20px;">
+                    {{ chart_svg | safe }}
+                </div>
+                {% endif %}
+                
+                <table class="sabian-table seasonal-sabian-table positions-table"> {# positions-tableクラスも適用してスタイルを統一 #}
+                    <thead>
+                        <tr>
+                            <th>天体</th>
+                            <th>サイン</th>
+                            <th>度数</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in sabian_data %}
+                        <tr>
+                            <td><span class="glyph">{{ planet_data.glyph }}</span> {{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ planet_data.degree_formatted }}</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>{{ year }}年 {{ title }}の情報は見つかりませんでした。</p>
+            {% endif %}
+        {% endmacro %}
+
+        {{ display_seasonal_sabian_pdf('春分点', vernal_equinox_sabian, seasonal_charts.vernal_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('夏至点', summer_solstice_sabian, seasonal_charts.summer_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('秋分点', autumnal_equinox_sabian, seasonal_charts.autumnal_chart_svg, current_year_for_seasonal) }}
+        {{ display_seasonal_sabian_pdf('冬至点', winter_solstice_sabian, seasonal_charts.winter_chart_svg, current_year_for_seasonal) }}
+    </div>
+
+    <!-- ソーラーアーク予測 -->
+    {% if solar_arc_forecast %}
+    <div class="bookmark-section result-section forecast-pdf-section" id="solar-arc-forecast">
+        <h2>9. ソーラーアークによるサビアン予測 (直近{{ solar_arc_forecast | length }}年間)</h2>
+        {% for yearly_data in solar_arc_forecast %}
+            <h3>{{ yearly_data.age }}歳</h3>
+            <table class="positions-table" style="margin-bottom: 1.5em; font-size: 9pt;">
+                <thead>
+                    <tr>
+                        <th>天体名</th>
+                        <th>星座</th>
+                        <th>度数 (星座内)</th>
+                        <th style="width: 50%;">サビアンシンボル</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for planet_data in yearly_data.planets %}
+                    <tr>
+                        <td>{{ planet_data.name_jp }}</td>
+                        <td>{{ planet_data.sign_jp }}</td>
+                        <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                        <td>{{ planet_data.sabian_symbol }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {# --- End Solar Arc Sabian Forecast for PDF --- #}
+
+    {# --- Secondary Progression Forecast for PDF --- #}
+    {% if secondary_progression %}
+    <div class="bookmark-section result-section forecast-pdf-section" id="secondary-progression">
+        <h2>{% if solar_arc_forecast %}10{% else %}9{% endif %}. 二次進行法による予測 (直近{{ secondary_progression | length }}年間)</h2>
+        {% for yearly_data in secondary_progression %}
+            <h3>{{ yearly_data.age }}歳 (進行日: {{ yearly_data.progressed_date }})</h3>
+            <table class="positions-table" style="margin-bottom: 1.5em; font-size: 9pt;">
+                <thead>
+                    <tr>
+                        <th>天体名</th>
+                        <th>星座</th>
+                        <th>度数 (星座内)</th>
+                        <th>逆行</th>
+                        <th style="width: 45%;">サビアンシンボル</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for planet_data in yearly_data.planets %}
+                    <tr>
+                        <td>{{ planet_data.name_jp }}</td>
+                        <td>{{ planet_data.sign_jp }}</td>
+                        <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                        <td>{% if planet_data.retrograde %}R{% else %}-{% endif %}</td>
+                        <td>{{ planet_data.sabian_symbol }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {# --- End Secondary Progression Forecast for PDF --- #}
+
+    <!-- トランジット情報 (存在する場合) -->
+    {% if transit is defined and transit %}
+    <div class="bookmark-section result-section" id="transit-info">
+        <h2>{% if secondary_progression %}{% if solar_arc_forecast %}11{% else %}10{% endif %}{% else %}{% if solar_arc_forecast %}10{% else %}9{% endif %}{% endif %}. トランジット情報 ({{ transit_date }})</h2>
+        
+        <h3>トランジット天体位置</h3>
+        <table class="positions-table">
+            <thead>
+                <tr>
+                    <th>天体</th>
+                    <th>サイン</th>
+                    <th>度数</th>
+                    <th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for planet_name, data in transit.positions.items() %}
+                <tr>
+                    <td>{{ data.name_jp | default(planet_name) }}</td>
+                    <td>{{ data.sign_jp }}</td>
+                    <td>{{ data.degree_formatted }}</td>
+                    <td><span class="glyph">{{ data.glyph }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>トランジット - ネイタル アスペクト</h3>
+        {% if transit.aspects %}
+        <ul class="aspect-list">
+            {% for aspect in transit.aspects %}
+            <li>
+                <span class="glyph">{{ aspect.planet1_glyph }}</span>T {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>N
+                ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }})
+                オーブ: {{ '%.2f'|format(aspect.orb) }}°
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>トランジット-ネイタル アスペクト情報がありません。</p>
+        {% endif %}
+        
+                        <h3>トランジットアスペクト解釈</h3>
+        
+        <!-- メジャーアスペクトの解説 -->
+        <h4>主要アスペクト</h4>
+        {% if transit.aspect_interpretations %}
+        <div class="interpretation">
+            {% for aspect in transit.aspect_interpretations %}
+                {% if aspect.is_major %}
+                <div class="interpretation-item aspect-interpretation highlight-major">
+                    <div class="aspect-title">
+                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
+                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
+                        オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                    </div>
+                    <p class="interpretation-text">{{ aspect.text }}</p>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        
+        <!-- マイナーアスペクトの解説 -->
+        <h4>マイナーアスペクト</h4>
+        <div class="interpretation">
+            {% set has_minor_aspects = false %}
+            {% for aspect in transit.aspect_interpretations %}
+                {% if not aspect.is_major %}
+                {% set has_minor_aspects = true %}
+                <div class="interpretation-item aspect-interpretation">
+                    <div class="aspect-title">
+                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
+                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
+                        オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                    </div>
+                    <p class="interpretation-text">{{ aspect.text }}</p>
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+            {% if not has_minor_aspects %}
+            <p style="color: #888; font-style: italic;">マイナーアスペクトはありません。</p>
+            {% endif %}
+        </div>
+        {% else %}
+        <p>トランジットアスペクト解釈情報がありません。</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>このホロスコープ解釈は占星術の計算に基づいて生成されています。解釈はあくまで参考として活用してください。</p>
+        <p>© {{ current_year_for_seasonal }} ホロスコープ計算システム</p>
+    </div>
+
+</body>
+</html> 

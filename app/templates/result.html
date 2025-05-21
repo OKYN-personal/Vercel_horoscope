@@ -1,0 +1,639 @@
+{% extends "base.html" %}
+
+{% block title %}ホロスコープ結果{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    /* Simple Tab CSS */
+    .tabs {
+        margin-top: 20px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .tab-button {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin-bottom: -1px; /* Overlap border */
+        cursor: pointer;
+        border: 1px solid transparent;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        background-color: #f8f9fa;
+        color: #007bff;
+    }
+    .tab-button:hover {
+        background-color: #e9ecef;
+        border-color: #dee2e6 #dee2e6 transparent;
+    }
+    .tab-button.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        border-bottom: 1px solid #fff; /* Cover bottom border */
+    }
+    .tab-content {
+        display: none; /* Hide all content by default */
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-top: none; /* Remove top border */
+    }
+    .tab-content.active {
+        display: block; /* Show active content */
+    }
+    .interpretation-item, .sabian-interpretation, .aspect-interpretation-list li {
+        margin-bottom: 1.5em; /* Add some space between items */
+        padding-bottom: 1em;
+        border-bottom: 1px solid #eee; /* Add subtle separator */
+    }
+    .interpretation-item:last-child, .sabian-interpretation:last-child, .aspect-interpretation-list li:last-child {
+         border-bottom: none;
+    }
+    .interpretation h4 {
+        margin-bottom: 0.5em;
+    }
+    .interpretation-text {
+        margin-top: 0.3em;
+        line-height: 1.6;
+    }
+
+    /* --- Added for Aspect Accordion --- */
+    .aspect-item {
+      border: 1px solid #eee;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      background-color: #fff; /* 背景色を白に */
+    }
+    .aspect-item.minor-aspect .aspect-title {
+      /* background-color: #f9f9f9; */ /* マイナーアスペクトのタイトル背景色は差別化しない方向で一旦調整 */
+    }
+    .aspect-title {
+      background-color: #f0f0f0;
+      padding: 10px 15px;
+      margin: 0;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e0e0e0; /* タイトルと詳細の区切り線 */
+    }
+    .aspect-title:hover {
+      background-color: #e9e9e9;
+    }
+    .aspect-details {
+      padding: 15px;
+      /* border-top: 1px solid #eee; */ /* タイトル側でborder-bottomを設定 */
+    }
+    .toggle-icon {
+      font-size: 0.8em;
+      margin-left: 10px;
+    }
+    .orb-info {
+      font-size: 0.8em;
+      color: #555;
+      margin-left: auto; /* 右寄せ */
+      margin-right: 10px; /* アイコンとの間隔 */
+    }
+    /* --- End Aspect Accordion CSS --- */
+
+    /* PDF Download Link and Footer Fix */
+    .container.result-page {
+        padding-bottom: 120px; /* フッターの高さに応じて調整、増やしてみる */
+    }
+    .pdf-download-section {
+        margin-top: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        text-align: center;
+    }
+    .pdf-download-section a {
+        font-size: 1.2em;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container result-page">
+    <h1>ホロスコープ結果</h1>
+
+    <div class="result-section">
+        <h2>入力情報</h2>
+        <p>生年月日: {{ result.birth_date }} {{ result.birth_time }}</p>
+        <p>出生地: {{ result.birth_place }}
+            (緯度: {{ '%.2f'|format(result.natal.latitude) if result.natal.latitude is not none else 'N/A' }},
+             経度: {{ '%.2f'|format(result.natal.longitude) if result.natal.longitude is not none else 'N/A' }})
+            <br>
+            <small>位置情報ソース: {{ result.natal.location_source | default('不明') }}</small>
+        </p>
+        {% if result.natal.location_warning %}
+        <div class="location-warning" style="color: #ff6b6b; background-color: #fff8f8; border: 1px solid #ffcccc; padding: 10px; margin: 10px 0; border-radius: 5px;">
+            <strong>⚠️ 注意:</strong> 入力された地名「{{ result.birth_place }}」を正確に認識できませんでした。デフォルト値（東京の座標）を使用しています。<br>
+            より正確な結果を得るには、地名を主要都市名に変更するか、入力フォームで緯度経度を手動入力してください。
+        </div>
+        {% endif %}
+        <p>タイムゾーン: {{ result.natal.chart_info.timezone | default('日本標準時 (UTC+9:00)') }} / ハウスシステム: {{ result.natal.chart_info.house_system_jp | default('プラシダス') }}</p>
+        {% if result.transit and result.transit.date_str %}<p>トランジット日時: {{ result.transit.date_str }}</p>{% endif %}
+    </div>
+
+    <div class="result-section">
+        <h2>天体の位置 (ネイタル)</h2>
+        <table class="positions-table">
+            <thead>
+                <tr>
+                    <th>天体</th>
+                    <th>サイン</th>
+                    <th>度数</th>
+                    <th>ハウス</th>
+                    <th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if result.natal.positions %}
+                    {% for planet_key, data in result.natal.positions.items() %}
+                    <tr>
+                        <td>{{ data.name_jp | default(planet_key) }}</td> {# 日本語名を使用 #}
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                        <td>{{ data.house if data.house is not none else '-' }}</td> {# Noneの場合はハイフン表示 #}
+                        <td><span class="glyph">{{ data.glyph }}</span></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="5">天体位置データがありません。</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="result-section">
+        <h2>ホロスコープチャート</h2>
+        <div class="chart-container" style="text-align: center;">
+            {% if result.chart_svg %}
+                {{ result.chart_svg | safe }} {# SVGを安全に描画 #}
+            {% else %}
+                <p style="color: #aaa;">（ホロスコープチャートの生成に失敗しました）</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="result-section">
+        <h2>アスペクト (ネイタル)</h2>
+        {% if result.natal.aspects %}
+            <!-- アスペクト表示のトグルボタン -->
+            <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+                <label for="show-minor-aspects" style="margin-right: 5px; font-size: 0.9em;">
+                    <input type="checkbox" id="show-minor-aspects" onchange="toggleMinorAspects(this)"> マイナーアスペクトも表示
+                </label>
+            </div>
+            
+            <ul class="aspect-list">
+            {% for aspect in result.natal.aspects %}
+                <li class="{% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                    <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
+                    ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }}) {# 日本語名を使用 #}
+                    オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>ネイタルアスペクト情報がありません。</p>
+        {% endif %}
+        
+        <h3>アスペクトグリッド (ネイタル)</h3>
+        {% if result.aspect_grid and result.aspect_grid.planets and result.aspect_grid.grid %}
+            <table class="aspect-grid-table">
+                <thead>
+                    <tr>
+                        <th></th> {# 左上の空セル #}
+                        {% for p_name in result.aspect_grid.planets %}
+                            <th><span class="glyph">{{ result.natal.positions[p_name].glyph if p_name in result.natal.positions else p_name }}</span></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p1_name in result.aspect_grid.planets %}
+                        <tr>
+                            <th><span class="glyph">{{ result.natal.positions[p1_name].glyph if p1_name in result.natal.positions else p1_name }}</span></th>
+                            {% for p2_name in result.aspect_grid.planets %}
+                                {% set cell_value = result.aspect_grid.grid[p1_name][p2_name] %}
+                                <td class="aspect-{{ cell_value.replace('☌','conj').replace('∗','sext').replace('□','squa').replace('△','trin').replace('☍','oppo') if cell_value and cell_value != 'X' else '' }}">
+                                    <span class="glyph">{{ cell_value }}</span>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>アスペクトグリッド情報がありません。</p>
+        {% endif %}
+    </div>
+    
+    <!-- Interpretation Tabs Start -->
+    <h2>解釈</h2>
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab(event, 'interpretation-natal')">ネイタル</button>
+        {% if result.transit %}
+        <button class="tab-button" onclick="openTab(event, 'interpretation-transit')">トランジット</button>
+        {% endif %}
+    </div>
+
+    <!-- Tab content -->
+    <div id="interpretation-natal" class="tab-content active">
+        <h3>天体のサイン解説</h3>
+        <div class="interpretation">
+            {% set interp_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] %}
+            {% if result.interpretations and result.interpretations.planet_in_sign %}
+                {% for planet_key in interp_order %}
+                    {% if planet_key in result.interpretations.planet_in_sign %}
+                        {% set interp_data = result.interpretations.planet_in_sign[planet_key] %}
+                        {% set planet_glyph = result.natal.positions[planet_key].glyph | default('') %}
+                        <div class="interpretation-item">
+                            <h4><span class="glyph">{{ planet_glyph }}</span> {{ interp_data.key }} 解説</h4>
+                            <p class="interpretation-text">{{ interp_data.text }}</p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                {# TODO: 他の天体 (Uranusなど) のサイン解説も同様に追加する場合 #}
+            {% else %}
+                 <p style="color: #aaa;">天体のサイン解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>天体のハウス解説</h3>
+        <div class="interpretation">
+             {% set interp_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] %}
+             {% if result.interpretations and result.interpretations.planet_in_house %}
+                {% for planet_key in interp_order %}
+                    {% if planet_key in result.interpretations.planet_in_house %}
+                        {% set interp_data = result.interpretations.planet_in_house[planet_key] %}
+                        {% set planet_glyph = result.natal.positions[planet_key].glyph | default('') %}
+                        <div class="interpretation-item">
+                            <h4><span class="glyph">{{ planet_glyph }}</span> {{ interp_data.key }} 解説</h4>
+                            <p class="interpretation-text">{{ interp_data.text }}</p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                 {# TODO: 他の天体 (Uranusなど) のハウス解説も同様に追加する場合 #}
+            {% else %}
+                 <p style="color: #aaa;">天体のハウス解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>アスペクト解説</h3>
+        <!-- アスペクト解説表示のトグルボタン -->
+        <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+            <label for="show-minor-aspects-interp" style="margin-right: 5px; font-size: 0.9em;">
+                <input type="checkbox" id="show-minor-aspects-interp" onchange="toggleMinorAspectInterpretations(this)"> マイナーアスペクトも表示
+            </label>
+        </div>
+        
+        <div class="interpretation aspect-interpretations-container">
+             {% if result.interpretations and result.interpretations.aspects %}
+                 {% for aspect in result.interpretations.aspects %}
+                 <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                     <h4 class="aspect-title">
+                         <div> {# Title content wrapper for flex alignment #}
+                             <span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
+                             <span class="glyph">{{ aspect.aspect_glyph | safe }}</span>
+                             <span class="glyph">{{ aspect.planet2_glyph | safe }}</span> {{ aspect.planet2_jp }}
+                             ({{ aspect.aspect_type }})
+                         </div>
+                         <span class="toggle-icon">{% if aspect.is_major %}&#9660;{% else %}&#9658;{% endif %}</span>
+                     </h4>
+                     <div class="aspect-details" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                         <p>{{ aspect.text }}</p>
+                     </div>
+                 </div>
+                 {% endfor %}
+             {% else %}
+                 <p style="color: #aaa;">ネイタルアスペクトの解釈情報がありません。</p>
+             {% endif %}
+        </div>
+
+         <h3>サビアンシンボル</h3>
+        <div class="interpretation">
+            {% if result.natal.sabian and result.natal.sabian is mapping and result.natal.sabian | length > 0 %}
+                {% for planet_key, sabian_data in result.natal.sabian.items() %}
+                    {% set planet_data = result.natal.positions.get(planet_key) %}
+                    {% if planet_data %}
+                        <div class="sabian-interpretation interpretation-item"> {# interpretation-item クラスを追加 #}
+                            <h4>
+                                <span class="glyph">{{ planet_data.glyph }}</span>
+                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }}
+                            </h4>
+                            {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p style="color: #aaa;">ネイタルサビアンシンボルの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        {# --- Solar Arc Sabian Forecast --- #}
+        {% if result.solar_arc_forecast %}
+        <div class="result-section forecast-section" style="margin-top: 2em;">
+            <h2>ソーラーアークによるサビアン予測 (直近{{ result.solar_arc_forecast | length }}年間)</h2>
+            {% for yearly_data in result.solar_arc_forecast %}
+                <h3>{{ yearly_data.age }}歳</h3>
+                <table class="positions-table forecast-table" style="margin-bottom: 1.5em;">
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in yearly_data.planets %}
+                        <tr>
+                            <td>{{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {# --- End Solar Arc Sabian Forecast --- #}
+
+        {# --- Secondary Progression Forecast --- #}
+        {% if result.secondary_progression %}
+        <div class="result-section forecast-section" style="margin-top: 2em;">
+            <h2>二次進行法による予測 (直近{{ result.secondary_progression | length }}年間)</h2>
+            {% for yearly_data in result.secondary_progression %}
+                <h3>{{ yearly_data.age }}歳 (進行日: {{ yearly_data.progressed_date }})</h3>
+                <table class="positions-table forecast-table" style="margin-bottom: 1.5em;">
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>逆行</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in yearly_data.planets %}
+                        <tr>
+                            <td>{{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                            <td>{% if planet_data.retrograde %}R{% else %}-{% endif %}</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {# --- End Secondary Progression Forecast --- #}
+
+    </div>
+
+    {# --- Transit Tab content (only if transit data exists) --- #}
+    {% if result.transit %}
+    <div id="interpretation-transit" class="tab-content">
+
+        <h3>トランジット天体</h3>
+        <table class="positions-table" style="margin-bottom: 2em;">
+             <thead>
+                <tr>
+                    <th>天体</th><th>サイン</th><th>度数</th><th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if result.transit.positions %}
+                    {% for planet_key, data in result.transit.positions.items() %}
+                    <tr>
+                        <td>{{ data.name_jp | default(planet_key) }}</td>
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                        <td><span class="glyph">{{ data.glyph }}</span></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                     <tr><td colspan="4">トランジット天体位置データがありません。</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <h3>アスペクト解説 (トランジット - ネイタル)</h3>
+        <!-- アスペクト解説表示のトグルボタン -->
+        <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+            <label for="show-minor-aspects-transit" style="margin-right: 5px; font-size: 0.9em;">
+                <input type="checkbox" id="show-minor-aspects-transit" onchange="toggleMinorAspectTransit(this)"> マイナーアスペクトも表示
+            </label>
+        </div>
+        
+        <div class="interpretation aspect-interpretations-container">
+            {# トランジットアスペクト解釈を表示 #}
+            {% if result.transit.aspect_interpretations and result.transit.aspect_interpretations | length > 0 %}
+                {% for aspect in result.transit.aspect_interpretations %}
+                <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                    <h4 class="aspect-title">
+                        <div>
+                            (T)<span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph | safe }}</span>
+                            (N)<span class="glyph">{{ aspect.planet2_glyph | safe }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <div> {# Right side of title for orb and icon #}
+                            <span class="orb-info">Orb: {{ '%.2f' | format(aspect.orb) }}</span>
+                            <span class="toggle-icon">{% if aspect.is_major %}&#9660;{% else %}&#9658;{% endif %}</span>
+                        </div>
+                    </h4>
+                    <div class="aspect-details" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                        <p>{{ aspect.text }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: #aaa;">トランジットアスペクトの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+
+        <h3>サビアンシンボル (トランジット)</h3>
+        <div class="interpretation">
+            {% if result.transit.sabian and result.transit.sabian is mapping and result.transit.sabian | length > 0 %}
+                {% for planet_key, sabian_data in result.transit.sabian.items() %}
+                    {% set planet_data = result.transit.positions.get(planet_key) %}
+                    {% if planet_data %}
+                        <div class="sabian-interpretation interpretation-item"> {# interpretation-item クラスを追加 #}
+                            <h4>
+                                <span class="glyph">{{ planet_data.glyph }}</span>
+                                {{ planet_data.name_jp | default(planet_key) }}のサビアンシンボル: {{ sabian_data.symbol }}
+                            </h4>
+                            {# <p class="interpretation-text" style="white-space: pre-wrap;">{{ sabian_data.interpretation }}</p> #}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p style="color: #aaa;">トランジットのサビアンシンボル解釈情報がありません。</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    <!-- Interpretation Tabs End -->
+
+    <!-- 四季のサビアンシンボル MOVED HERE -->
+    <div class="result-section" id="seasonal-sabian-symbols">
+        <h2>四季のサビアンシンボル ({{ result.current_year_for_seasonal }}年 東京基準)</h2>
+
+        {% macro display_seasonal_sabian(title, sabian_data, chart_svg, year) %}
+            {% if sabian_data and sabian_data is iterable and sabian_data | length > 0 %}
+                <h3>{{ year }}年 {{ title }}</h3>
+                
+                <!-- ホロスコープチャート表示 -->
+                {% if chart_svg %}
+                <div class="chart-container" style="text-align: center; margin-bottom: 20px;">
+                    {{ chart_svg | safe }}
+                </div>
+                {% endif %}
+                
+                <table class="positions-table forecast-table">
+                    <thead>
+                        <tr>
+                            <th>天体名</th>
+                            <th>星座</th>
+                            <th>度数 (星座内)</th>
+                            <th>サビアンシンボル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for planet_data in sabian_data %}
+                        <tr>
+                            <td>{{ planet_data.name_jp }}</td>
+                            <td>{{ planet_data.sign_jp }}</td>
+                            <td>{{ '%.2f'|format(planet_data.degree_in_sign_decimal) }}°</td>
+                            <td>{{ planet_data.sabian_symbol }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %} {# Removed extra <p> for not found, as it's part of the macro now if needed #}
+        {% endmacro %}
+
+        {{ display_seasonal_sabian('春分点', result.vernal_equinox_sabian, result.seasonal_charts.vernal_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('夏至点', result.summer_solstice_sabian, result.seasonal_charts.summer_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('秋分点', result.autumnal_equinox_sabian, result.seasonal_charts.autumnal_chart_svg, result.current_year_for_seasonal) }}
+        {{ display_seasonal_sabian('冬至点', result.winter_solstice_sabian, result.seasonal_charts.winter_chart_svg, result.current_year_for_seasonal) }}
+    </div>
+
+    {% if result.transit %}
+    <div class="result-section">
+        <h2>トランジット情報 ({{ result.transit.date_str }})</h2>
+        <h3>トランジット天体位置</h3>
+        <table class="positions-table">
+             <thead>
+                <tr>
+                    <th>天体</th>
+                    <th>サイン</th>
+                    <th>度数</th>
+                    <th>記号</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if result.transit.positions %}
+                    {% for planet_key, data in result.transit.positions.items() %}
+                    <tr>
+                        <td>{{ data.name_jp | default(planet_key) }}</td> {# 日本語名を使用 #}
+                        <td>{{ data.sign_jp }}</td>
+                        <td>{{ data.degree_formatted }}</td>
+                        <td><span class="glyph">{{ data.glyph }}</span></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                     <tr><td colspan="4">トランジット天体位置データがありません。</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="result-section pdf-download-section">
+        <h2>PDFダウンロード</h2>
+        {% if result.pdf_url %}
+            <p><a href="{{ result.pdf_url }}" target="_blank" class="btn btn-primary">ホロスコープ結果をPDFでダウンロード</a></p>
+        {% else %}
+            <p style="color: #aaa;">PDFの生成に失敗したか、URLがありません。</p>
+        {% endif %}
+    </div>
+
+    <div class="result-section back-link" style="text-align: center; margin-top: 20px; padding-bottom: 30px;">
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">入力画面に戻る</a>
+    </div>
+</div>
+
+<script>
+function openTab(evt, tabName) {
+    // Declare all variables
+    var i, tabcontent, tablinks;
+
+    // Get all elements with class="tab-content" and hide them
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+
+    // Get all elements with class="tab-button" and remove the class "active"
+    tablinks = document.getElementsByClassName("tab-button");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+
+    // Show the current tab, and add an "active" class to the button that opened the tab
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+
+// Accordion for Aspects
+document.addEventListener('DOMContentLoaded', function() {
+  const aspectTitles = document.querySelectorAll('.aspect-interpretations-container .aspect-title');
+  aspectTitles.forEach(title => {
+    title.addEventListener('click', function() {
+      const details = this.nextElementSibling;
+      const icon = this.querySelector('.toggle-icon');
+      if (details.style.display === 'none' || details.style.display === '') {
+        details.style.display = 'block';
+        if (icon) icon.innerHTML = '&#9660;'; // Down arrow
+      } else {
+        details.style.display = 'none';
+        if (icon) icon.innerHTML = '&#9658;'; // Right arrow
+      }
+    });
+  });
+});
+
+// 追加: マイナーアスペクト表示/非表示を切り替える関数
+function toggleMinorAspects(checkbox) {
+    const minorAspects = document.querySelectorAll('.aspect-list .minor-aspect');
+    minorAspects.forEach(element => {
+        element.style.display = checkbox.checked ? 'list-item' : 'none';
+    });
+}
+
+// 追加: マイナーアスペクト解釈の表示/非表示を切り替える関数
+function toggleMinorAspectInterpretations(checkbox) {
+    const minorAspectInterpretations = document.querySelectorAll('#interpretation-natal .aspect-interpretations-container .minor-aspect');
+    minorAspectInterpretations.forEach(element => {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    });
+}
+
+// 追加: マイナーアスペクト表示/非表示を切り替える関数
+function toggleMinorAspectTransit(checkbox) {
+    const minorAspectTransit = document.querySelectorAll('#interpretation-transit .aspect-interpretations-container .minor-aspect');
+    minorAspectTransit.forEach(element => {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    });
+}
+</script>
+{% endblock %} 

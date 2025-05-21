@@ -1,0 +1,392 @@
+/* 全体のスタイル */
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ヘッダー */
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+/* ナビゲーションバー - Bootstrap 5対応 */
+.navbar {
+    padding: 0.5rem 0;
+    margin-bottom: 1.5rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.5rem 1rem;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #ffffff;
+}
+
+.navbar-toggler {
+    border: none;
+    padding: 0.5rem;
+}
+
+/* Bootstrap 5 ナビゲーションバー修正 */
+.navbar-collapse.show {
+    display: block;
+}
+
+.collapse:not(.show) {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        padding-top: 0.5rem;
+    }
+    
+    .navbar-nav {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* モバイル表示時のナビゲーションメニュー */
+    .navbar-collapse.show .navbar-nav {
+        display: block;
+        width: 100%;
+    }
+    
+    .navbar-collapse.show .nav-item {
+        display: block;
+        width: 100%;
+    }
+    
+    .navbar-collapse.show .nav-link {
+        padding: 0.75rem 1rem;
+        display: block;
+    }
+}
+
+/* フォーム */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+input[type="date"],
+input[type="time"],
+input[type="text"],
+input[type="datetime-local"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+/* トグルボタン */
+.toggle-button {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
+
+.toggle-button:hover {
+    background-color: #e9ecef;
+}
+
+/* 位置フィードバック */
+.location-feedback {
+    margin-top: 5px;
+    font-size: 0.85em;
+    color: #666;
+    background-color: #f8f8f8;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+/* 緯度経度バッジ */
+.coords-badge {
+    display: inline-block;
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 5px;
+    font-family: monospace;
+}
+
+/* 警告メッセージ */
+.location-warning {
+    color: #ff6b6b;
+    background-color: #fff8f8;
+    border: 1px solid #ffcccc;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+/* Google Maps Autocomplete候補リスト */
+.pac-container {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    border: 1px solid #ddd;
+    border-top: none;
+}
+
+.pac-item {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.pac-item:hover {
+    background-color: #f5f5f5;
+}
+
+.pac-item-selected {
+    background-color: #e6f0fd;
+}
+
+/* 結果表示エリア */
+#result {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.hidden {
+    display: none;
+}
+
+/* ローディング表示 */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+/* エラー表示 */
+.error {
+    color: #e74c3c;
+    padding: 1rem;
+    background-color: #fde8e8;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+/* 結果コンテナ */
+.result-container {
+    padding: 1rem;
+}
+
+.result-container h2 {
+    color: #2c3e50;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.result-container h3 {
+    color: #34495e;
+    margin: 1.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #3498db;
+}
+
+.result-container h4 {
+    color: #7f8c8d;
+    margin: 1rem 0;
+}
+
+/* テーブル */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* アスペクト */
+.aspect {
+    margin: 0.5em 0;
+    padding: 0.5em;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+/* サビアンシンボル */
+.sabian-symbol {
+    margin: 1em 0;
+    padding: 1em;
+    background-color: #f8f9fa;
+    border-left: 4px solid #3498db;
+}
+
+/* アクションボタン */
+.actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.actions .button {
+    flex: 1;
+    text-align: center;
+    text-decoration: none;
+    background-color: #3498db;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.actions .button:hover {
+    background-color: #2980b9;
+}
+
+/* フッター */
+footer {
+    text-align: center;
+    padding: 1rem;
+    background-color: #2c3e50;
+    color: white;
+}
+
+/* メインコンテンツ */
+main {
+    min-height: calc(100vh - 200px);
+}
+
+/* フォームセクション */
+.form-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    color: #333;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+}
+
+/* 月のノードとライフイベント専用スタイル */
+.node-card, .event-card {
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.node-card h3, .event-card h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.interpretation {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-left: 4px solid #3498db;
+    border-radius: 0 4px 4px 0;
+}
+
+.event-intensity {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+    color: white;
+    background-color: #3498db;
+}
+
+.intensity-high {
+    background-color: #e74c3c;
+}
+
+.intensity-medium {
+    background-color: #f39c12;
+}
+
+.intensity-low {
+    background-color: #2ecc71;
+}
+
+/* 印刷用スタイル */
+@media print {
+    header, footer, .actions {
+        display: none;
+    }
+    
+    body {
+        background-color: white;
+    }
+    
+    .result-container {
+        padding: 0;
+    }
+    
+    table {
+        page-break-inside: avoid;
+    }
+} 

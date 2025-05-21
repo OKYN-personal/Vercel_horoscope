@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}月のノード計算{% endblock %}
+
+{% block head %}
+<style>
+    /* このページ専用のスタイルがあればここに追加 */
+    .import-button {
+        margin-bottom: 1rem;
+        background-color: #e8f4ff;
+        border-color: #b8daff;
+    }
+    
+    /* 緯度経度のバッジスタイル */
+    .coords-badge {
+        display: inline-block;
+        background-color: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-right: 5px;
+    }
+    
+    /* 入力フィールドの位置表示スタイル */
+    .location-feedback {
+        margin-top: 5px;
+        font-size: 0.85em;
+        color: #666;
+    }
+</style>
+{% endblock head %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center my-4">月のノード（ドラゴンヘッド・ドラゴンテイル）計算</h2>
+    <p class="text-center mb-4">あなたの出生情報から、魂の課題や目的を示す月のノードを計算します。</p>
+
+    <form id="nodeForm" action="{{ url_for('main.calculate_lunar_nodes_endpoint') }}" method="post">
+        <button type="button" id="importDataBtn" class="btn btn-outline-primary import-button">
+            <i class="fas fa-sync-alt"></i> ホロスコープの基本情報を引き継ぐ
+        </button>
+        
+        <div class="form-section">
+            <h3>出生情報</h3>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label for="birthDate">生年月日:</label>
+                    <input type="date" class="form-control" id="birthDate" name="birthDate" required>
+                </div>
+                <div class="col-md-4 form-group">
+                    <label for="birthTime">出生時刻:</label>
+                    <input type="time" class="form-control" id="birthTime" name="birthTime" required>
+                </div>
+                <div class="col-md-4 form-group">
+                    <label for="birthPlace">出生地:</label>
+                    <input type="text" class="form-control" id="birthPlace" name="birthPlace" placeholder="例: 東京都" required>
+                    <div id="locationFeedbackNodes" class="location-feedback"></div>
+                </div>
+            </div>
+             <div class="form-group">
+                <button type="button" id="toggleCoordinatesNodes" class="toggle-button btn btn-sm btn-outline-secondary mt-2">緯度経度を手動入力する</button>
+                <div id="coordinatesFieldsNodes" style="display:none; margin-top: 10px;">
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="latitude">緯度:</label>
+                            <input type="text" class="form-control" id="latitude" name="latitude" placeholder="例: 35.6895">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="longitude">経度:</label>
+                            <input type="text" class="form-control" id="longitude" name="longitude" placeholder="例: 139.6917">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg">月のノードを計算する</button>
+        </div>
+    </form>
+    <div id="errorDisplayNodes" class="error-message hidden" style="color: red; margin-top: 1em;"></div>
+
+</div>
+{% endblock content %}
+
+
+{% block scripts %}
+{{ super() }} 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtnNodes = document.getElementById('toggleCoordinatesNodes');
+    const coordinatesFieldsNodes = document.getElementById('coordinatesFieldsNodes');
+    const birthPlaceInputNodes = document.getElementById('birthPlace');
+    const latInputNodes = document.getElementById('latitude');
+    const lngInputNodes = document.getElementById('longitude');
+    const feedbackElNodes = document.getElementById('locationFeedbackNodes');
+    const importDataBtn = document.getElementById('importDataBtn');
+
+    // ホロスコープ基本情報を引き継ぐボタンの処理
+    if (importDataBtn) {
+        importDataBtn.addEventListener('click', function() {
+            // localStorageからデータを取得して入力
+            if (localStorage.getItem('birthDate')) {
+                document.getElementById('birthDate').value = localStorage.getItem('birthDate');
+            }
+            
+            if (localStorage.getItem('birthTime')) {
+                document.getElementById('birthTime').value = localStorage.getItem('birthTime');
+            }
+            
+            if (localStorage.getItem('birthPlace')) {
+                document.getElementById('birthPlace').value = localStorage.getItem('birthPlace');
+            }
+            
+            // 緯度経度情報も取得
+            if (localStorage.getItem('latitude') && localStorage.getItem('longitude')) {
+                document.getElementById('latitude').value = localStorage.getItem('latitude');
+                document.getElementById('longitude').value = localStorage.getItem('longitude');
+                
+                // 座標フィードバックを更新
+                updateCoordinateFeedbackNodes();
+                
+                // 緯度経度入力欄を表示
+                if (coordinatesFieldsNodes && toggleBtnNodes) {
+                    coordinatesFieldsNodes.style.display = 'block';
+                    toggleBtnNodes.textContent = '自動入力に戻す';
+                }
+            }
+        });
+    }
+
+    if (toggleBtnNodes && coordinatesFieldsNodes) {
+        toggleBtnNodes.addEventListener('click', function () {
+            const isHidden = coordinatesFieldsNodes.style.display === 'none' || coordinatesFieldsNodes.style.display === '';
+            coordinatesFieldsNodes.style.display = isHidden ? 'block' : 'none';
+            toggleBtnNodes.textContent = isHidden ? '自動入力に戻す' : '緯度経度を手動入力する';
+        });
+    }
+
+    function updateCoordinateFeedbackNodes() {
+        if (latInputNodes.value && lngInputNodes.value) {
+            try {
+                const lat = parseFloat(latInputNodes.value);
+                const lng = parseFloat(lngInputNodes.value);
+                if (feedbackElNodes) {
+                    feedbackElNodes.innerHTML = `
+                        <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                        <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                        <span>手動入力された座標</span>
+                    `;
+                }
+                 if (coordinatesFieldsNodes && toggleBtnNodes) {
+                    coordinatesFieldsNodes.style.display = 'block';
+                    toggleBtnNodes.textContent = '自動入力に戻す';
+                }
+            } catch (e) {
+                if (feedbackElNodes) feedbackElNodes.textContent = '有効な緯度経度を入力してください';
+            }
+        } else if (feedbackElNodes) {
+             feedbackElNodes.innerHTML = ''; // 入力がない場合はクリア
+        }
+    }
+
+    if (latInputNodes) latInputNodes.addEventListener('input', updateCoordinateFeedbackNodes);
+    if (lngInputNodes) lngInputNodes.addEventListener('input', updateCoordinateFeedbackNodes);
+
+    {% if google_maps_api_key %}
+    function initAutocompleteNodes() {
+        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+            const autocomplete = new google.maps.places.Autocomplete(birthPlaceInputNodes, {
+                types: ['(cities)']
+            });
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+                if (place.geometry && place.geometry.location) {
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    if(latInputNodes) latInputNodes.value = lat.toFixed(6);
+                    if(lngInputNodes) lngInputNodes.value = lng.toFixed(6);
+                    if(feedbackElNodes) {
+                         feedbackElNodes.innerHTML = `
+                            <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                            <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                            <span>${place.formatted_address || place.name}</span>
+                        `;
+                    }
+                    if (coordinatesFieldsNodes && toggleBtnNodes) {
+                        coordinatesFieldsNodes.style.display = 'none';
+                        toggleBtnNodes.textContent = '緯度経度を手動入力する';
+                    }
+                } else {
+                    if(feedbackElNodes) feedbackElNodes.textContent = '場所のジオメトリが見つかりません。';
+                }
+            });
+        } else {
+            console.warn("Google Maps APIが完全にロードされていません。オートコンプリートは無効です。");
+            if(feedbackElNodes) feedbackElNodes.textContent = '地図サービスに接続できません。地名検索は利用できません。';
+        }
+    }
+    if (window.google && window.google.maps) {
+        initAutocompleteNodes();
+    } else {
+        console.log("Google Maps APIの読み込みを待機しています (lunar_nodes_form.html)");
+        // Google Maps APIの読み込みを待つイベントリスナー
+        window.addEventListener('load', function() {
+            if (window.google && window.google.maps) {
+                initAutocompleteNodes();
+            } else {
+                console.error("Google Maps APIの読み込みに失敗しました");
+            }
+        });
+    }
+    {% else %}
+    if(birthPlaceInputNodes && feedbackElNodes) {
+        feedbackElNodes.textContent = '地名検索機能は利用できません (APIキー未設定)';
+        birthPlaceInputNodes.placeholder = "緯度経度を手動で入力してください";
+    }
+    {% endif %}
+    
+    const nodeForm = document.getElementById('nodeForm');
+    const errorDisplayNodes = document.getElementById('errorDisplayNodes');
+
+    if (nodeForm && errorDisplayNodes) {
+        nodeForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            errorDisplayNodes.classList.add('hidden');
+            errorDisplayNodes.innerHTML = '';
+
+            const formData = new FormData(nodeForm);
+            let isValid = true;
+            if (!formData.get('birthDate')) {
+                displayErrorNodes("生年月日を入力してください。");
+                isValid = false;
+            }
+            if (!formData.get('birthTime')) {
+                displayErrorNodes("出生時刻を入力してください。");
+                isValid = false;
+            }
+            if (!formData.get('birthPlace') && (!formData.get('latitude') || !formData.get('longitude'))) {
+                 displayErrorNodes("出生地を入力するか、緯度経度を正確に入力してください。");
+                isValid = false;
+            }
+
+            if (!isValid) return;
+
+            try {
+                const response = await fetch("{{ url_for('main.calculate_lunar_nodes_endpoint') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    let errorText = `サーバーエラーが発生しました: ${response.status}`;
+                    try {
+                        const errorJson = await response.json();
+                        if (errorJson && errorJson.error) {
+                            errorText = errorJson.error;
+                        }
+                    } catch (e) { /* JSONパースエラーは無視 */ }
+                    throw new Error(errorText);
+                }
+                const result = await response.json();
+                if (result.error) {
+                    displayErrorNodes(result.error);
+                } else if (result.redirect_url) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    displayErrorNodes("予期せぬ結果が返されました。");
+                }
+            } catch (error) {
+                displayErrorNodes(error.message || "計算中にエラーが発生しました。入力内容を確認してください。");
+                console.error("Error in lunar node calculation:", error);
+            }
+        });
+    }
+
+    function displayErrorNodes(message) {
+        if (errorDisplayNodes) {
+            errorDisplayNodes.innerHTML += `<p>${message}</p>`;
+            errorDisplayNodes.classList.remove('hidden');
+        }
+    }
+});
+</script>
+{% endblock scripts %} 
