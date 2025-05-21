@@ -1091,4 +1091,9 @@ def life_events_result():
                               pdf_url=pdf_url)
     except Exception as e:
         current_app.logger.error(f"Error in /life_events_result: {e}\n{traceback.format_exc()}")
-        return render_template('error.html', error=str(e)) 
+        return render_template('error.html', error=str(e))
+
+@bp.route('/pwa_test')
+def pwa_test():
+    """PWA機能テスト用ページ"""
+    return render_template('pwa_test.html') 
