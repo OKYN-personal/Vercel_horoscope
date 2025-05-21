@@ -133,7 +133,7 @@
         </div>
         {% endif %}
         <p>タイムゾーン: {{ result.natal.chart_info.timezone | default('日本標準時 (UTC+9:00)') }} / ハウスシステム: {{ result.natal.chart_info.house_system_jp | default('プラシダス') }}</p>
-        {% if result.transit_date %}<p>トランジット日時: {{ result.transit_date }}</p>{% endif %}
+        {% if result.transit and result.transit.date_str %}<p>トランジット日時: {{ result.transit.date_str }}</p>{% endif %}
     </div>
 
     <div class="result-section">
@@ -529,7 +529,7 @@
 
     {% if result.transit %}
     <div class="result-section">
-        <h2>トランジット情報 ({{ result.transit_date }})</h2>
+        <h2>トランジット情報 ({{ result.transit.date_str }})</h2>
         <h3>トランジット天体位置</h3>
         <table class="positions-table">
              <thead>
