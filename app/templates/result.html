@@ -180,9 +180,16 @@
     <div class="result-section">
         <h2>アスペクト (ネイタル)</h2>
         {% if result.natal.aspects %}
+            <!-- アスペクト表示のトグルボタン -->
+            <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+                <label for="show-minor-aspects" style="margin-right: 5px; font-size: 0.9em;">
+                    <input type="checkbox" id="show-minor-aspects" onchange="toggleMinorAspects(this)"> マイナーアスペクトも表示
+                </label>
+            </div>
+            
             <ul class="aspect-list">
             {% for aspect in result.natal.aspects %}
-                <li>
+                <li class="{% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
                     <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.aspect_glyph }} <span class="glyph">{{ aspect.planet2_glyph }}</span>
                     ({{ aspect.planet1_jp | default(aspect.planet1) }} - {{ aspect.planet2_jp | default(aspect.planet2) }}) {# 日本語名を使用 #}
                     オーブ: {{ '%.2f'|format(aspect.orb) }}°
@@ -275,11 +282,17 @@
         </div>
 
         <h3>アスペクト解説</h3>
-        <div class="interpretation aspect-interpretations-container"> {# Changed class and added a container div #}
+        <!-- アスペクト解説表示のトグルボタン -->
+        <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+            <label for="show-minor-aspects-interp" style="margin-right: 5px; font-size: 0.9em;">
+                <input type="checkbox" id="show-minor-aspects-interp" onchange="toggleMinorAspectInterpretations(this)"> マイナーアスペクトも表示
+            </label>
+        </div>
+        
+        <div class="interpretation aspect-interpretations-container">
              {% if result.interpretations and result.interpretations.aspects %}
-                 {# Removed old ul, will use new structure #}
                  {% for aspect in result.interpretations.aspects %}
-                 <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}">
+                 <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
                      <h4 class="aspect-title">
                          <div> {# Title content wrapper for flex alignment #}
                              <span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
@@ -413,32 +426,39 @@
         </table>
 
         <h3>アスペクト解説 (トランジット - ネイタル)</h3>
-         <div class="interpretation aspect-interpretations-container">
+        <!-- アスペクト解説表示のトグルボタン -->
+        <div class="aspect-toggle-container" style="margin-bottom: 1em; text-align: right;">
+            <label for="show-minor-aspects-transit" style="margin-right: 5px; font-size: 0.9em;">
+                <input type="checkbox" id="show-minor-aspects-transit" onchange="toggleMinorAspectTransit(this)"> マイナーアスペクトも表示
+            </label>
+        </div>
+        
+        <div class="interpretation aspect-interpretations-container">
             {# トランジットアスペクト解釈を表示 #}
             {% if result.transit.aspect_interpretations and result.transit.aspect_interpretations | length > 0 %}
-                 {% for aspect in result.transit.aspect_interpretations %}
-                 <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}">
-                     <h4 class="aspect-title">
-                         <div>
-                             (T)<span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
-                             <span class="glyph">{{ aspect.aspect_glyph | safe }}</span>
-                             (N)<span class="glyph">{{ aspect.planet2_glyph | safe }}</span> {{ aspect.planet2_jp }}
-                             ({{ aspect.aspect_type }})
-                         </div>
-                         <div> {# Right side of title for orb and icon #}
+                {% for aspect in result.transit.aspect_interpretations %}
+                <div class="aspect-item {% if not aspect.is_major %}minor-aspect{% endif %}" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                    <h4 class="aspect-title">
+                        <div>
+                            (T)<span class="glyph">{{ aspect.planet1_glyph | safe }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph | safe }}</span>
+                            (N)<span class="glyph">{{ aspect.planet2_glyph | safe }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <div> {# Right side of title for orb and icon #}
                             <span class="orb-info">Orb: {{ '%.2f' | format(aspect.orb) }}</span>
                             <span class="toggle-icon">{% if aspect.is_major %}&#9660;{% else %}&#9658;{% endif %}</span>
-                         </div>
-                     </h4>
-                     <div class="aspect-details" {% if not aspect.is_major %}style="display: none;"{% endif %}>
-                         <p>{{ aspect.text }}</p>
-                     </div>
-                 </div>
-                 {% endfor %}
+                        </div>
+                    </h4>
+                    <div class="aspect-details" {% if not aspect.is_major %}style="display: none;"{% endif %}>
+                        <p>{{ aspect.text }}</p>
+                    </div>
+                </div>
+                {% endfor %}
             {% else %}
                 <p style="color: #aaa;">トランジットアスペクトの解釈情報がありません。</p>
             {% endif %}
-         </div>
+        </div>
 
         <h3>サビアンシンボル (トランジット)</h3>
         <div class="interpretation">
@@ -591,5 +611,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+// 追加: マイナーアスペクト表示/非表示を切り替える関数
+function toggleMinorAspects(checkbox) {
+    const minorAspects = document.querySelectorAll('.aspect-list .minor-aspect');
+    minorAspects.forEach(element => {
+        element.style.display = checkbox.checked ? 'list-item' : 'none';
+    });
+}
+
+// 追加: マイナーアスペクト解釈の表示/非表示を切り替える関数
+function toggleMinorAspectInterpretations(checkbox) {
+    const minorAspectInterpretations = document.querySelectorAll('#interpretation-natal .aspect-interpretations-container .minor-aspect');
+    minorAspectInterpretations.forEach(element => {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    });
+}
+
+// 追加: マイナーアスペクト表示/非表示を切り替える関数
+function toggleMinorAspectTransit(checkbox) {
+    const minorAspectTransit = document.querySelectorAll('#interpretation-transit .aspect-interpretations-container .minor-aspect');
+    minorAspectTransit.forEach(element => {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    });
+}
 </script>
 {% endblock %} 

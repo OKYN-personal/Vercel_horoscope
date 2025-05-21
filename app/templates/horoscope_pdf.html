@@ -388,19 +388,52 @@
 
     <div class="bookmark-section result-section" id="aspect-interpretations">
         <h2>7. アスペクト解説</h2>
+        
+        <!-- メジャーアスペクトの解説 -->
+        <h3>主要アスペクト</h3>
         <div class="interpretation">
             {% if interpretations and interpretations.aspects %}
                 {% for aspect in interpretations.aspects %}
-                <div class="interpretation-item aspect-interpretation {% if aspect.is_major %}highlight-major{% endif %}">
-                    <div class="aspect-title">
-                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
-                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
-                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
-                        ({{ aspect.aspect_type }})
+                    {% if aspect.is_major %}
+                    <div class="interpretation-item aspect-interpretation highlight-major">
+                        <div class="aspect-title">
+                            <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                            <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <p class="interpretation-text">{{ aspect.text }}</p>
                     </div>
-                    <p class="interpretation-text">{{ aspect.text }}</p>
-                </div>
+                    {% endif %}
                 {% endfor %}
+            {% else %}
+                <p>ネイタルアスペクトの解釈情報がありません。</p>
+            {% endif %}
+        </div>
+        
+        <!-- マイナーアスペクトの解説 -->
+        <h3>マイナーアスペクト</h3>
+        <div class="interpretation">
+            {% if interpretations and interpretations.aspects %}
+                {% set has_minor_aspects = false %}
+                {% for aspect in interpretations.aspects %}
+                    {% if not aspect.is_major %}
+                    {% set has_minor_aspects = true %}
+                    <div class="interpretation-item aspect-interpretation">
+                        <div class="aspect-title">
+                            <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }}
+                            <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                            <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }}
+                            ({{ aspect.aspect_type }})
+                        </div>
+                        <p class="interpretation-text">{{ aspect.text }}</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if not has_minor_aspects %}
+                <p style="color: #888; font-style: italic;">マイナーアスペクトはありません。</p>
+                {% endif %}
             {% else %}
                 <p>ネイタルアスペクトの解釈情報がありません。</p>
             {% endif %}
@@ -577,20 +610,49 @@
         <p>トランジット-ネイタル アスペクト情報がありません。</p>
         {% endif %}
         
-        <h3>トランジットアスペクト解釈</h3>
+                        <h3>トランジットアスペクト解釈</h3>
+        
+        <!-- メジャーアスペクトの解説 -->
+        <h4>主要アスペクト</h4>
         {% if transit.aspect_interpretations %}
         <div class="interpretation">
             {% for aspect in transit.aspect_interpretations %}
-            <div class="interpretation-item aspect-interpretation {% if aspect.is_major %}highlight-major{% endif %}">
-                <div class="aspect-title">
-                    <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
-                    <span class="glyph">{{ aspect.aspect_glyph }}</span>
-                    <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
-                    オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                {% if aspect.is_major %}
+                <div class="interpretation-item aspect-interpretation highlight-major">
+                    <div class="aspect-title">
+                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
+                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
+                        オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                    </div>
+                    <p class="interpretation-text">{{ aspect.text }}</p>
                 </div>
-                <p class="interpretation-text">{{ aspect.text }}</p>
-            </div>
+                {% endif %}
             {% endfor %}
+        </div>
+        
+        <!-- マイナーアスペクトの解説 -->
+        <h4>マイナーアスペクト</h4>
+        <div class="interpretation">
+            {% set has_minor_aspects = false %}
+            {% for aspect in transit.aspect_interpretations %}
+                {% if not aspect.is_major %}
+                {% set has_minor_aspects = true %}
+                <div class="interpretation-item aspect-interpretation">
+                    <div class="aspect-title">
+                        <span class="glyph">{{ aspect.planet1_glyph }}</span> {{ aspect.planet1_jp }} (T)
+                        <span class="glyph">{{ aspect.aspect_glyph }}</span>
+                        <span class="glyph">{{ aspect.planet2_glyph }}</span> {{ aspect.planet2_jp }} (N)
+                        オーブ: {{ '%.2f'|format(aspect.orb) }}°
+                    </div>
+                    <p class="interpretation-text">{{ aspect.text }}</p>
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+            {% if not has_minor_aspects %}
+            <p style="color: #888; font-style: italic;">マイナーアスペクトはありません。</p>
+            {% endif %}
         </div>
         {% else %}
         <p>トランジットアスペクト解釈情報がありません。</p>
