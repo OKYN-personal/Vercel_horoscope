@@ -1,3 +1,10 @@
+/* 基本スタイル */
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
 /* ナビゲーションバー */
 .navbar {
     background-color: #336699;
@@ -41,7 +48,33 @@
     color: #c0d6eb;
 }
 
+/* テーブルスタイル */
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.positions-table th, .positions-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.positions-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+/* 天文記号用 */
+.glyph {
+    font-family: Arial, sans-serif;
+    font-weight: normal;
+}
+
+/* レスポンシブ対応 */
 @media (max-width: 768px) {
+    /* ナビゲーション */
     .navbar .container {
         flex-direction: column;
         align-items: flex-start;
@@ -56,4 +89,67 @@
         margin-left: 0;
         margin-right: 1rem;
     }
+    
+    /* テーブル */
+    .positions-table {
+        overflow-x: auto;
+        display: block;
+    }
+    
+    /* チャート */
+    .chart-container svg {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* 見出し */
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    /* 解釈コンテナ */
+    .interpretation-item {
+        padding: 10px;
+    }
+}
+
+/* インストールバナー */
+.app-install-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 15px;
+    text-align: center;
+    display: none; /* 初期状態は非表示 */
+    z-index: 1000;
+}
+
+.app-install-banner.show {
+    display: block;
+}
+
+.app-install-banner button {
+    margin: 0 5px;
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+/* オフラインモード通知 */
+.offline-mode {
+    background-color: #ffe6e6;
+    color: #cc0000;
+    text-align: center;
+    padding: 10px;
+    display: none;
+}
+
+.offline-mode.show {
+    display: block;
 } 
