@@ -1,6 +1,6 @@
 {
-  "name": "ホロスコープ・サビアンシンボル",
-  "short_name": "ホロスコープ",
+  "name": "スターゲイザー",
+  "short_name": "StarGazer",
   "description": "占星術ホロスコープ計算・解釈アプリ",
   "start_url": "/",
   "display": "standalone",
