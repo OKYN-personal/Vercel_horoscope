@@ -12,6 +12,7 @@ from app.sabian import get_sabian_symbol # get_interpretation は削除された
 from app.pdf_generator import generate_horoscope_pdf, generate_synastry_pdf, generate_lunar_nodes_pdf, generate_life_events_pdf # 新しいPDF生成関数をインポート
 from app.chart_generator import generate_chart_svg # SVG生成関数をインポート
 from app.interpretations import PLANET_IN_SIGN_INTERPRETATIONS, PLANET_IN_HOUSE_INTERPRETATIONS, ASPECT_INTERPRETATIONS # ASPECT_INTERPRETATIONS を追加
+from app.interpretations import get_dynamic_aspect_interpretation  # 動的アスペクト解釈関数を追加
 from app.utils import get_city_coordinates # , calculate_timezone_offset # calculate_timezone_offset を一旦コメントアウト
 from app.geocoding import get_coordinates_from_google_maps # Google Maps APIを使う関数をインポート
 import os
@@ -193,8 +194,14 @@ def calculate():
                     planets_sorted = sorted([p1, p2])
                     # aspect_type を小文字に変換してキーを作成
                     interp_key = f"{planets_sorted[0]}_{planets_sorted[1]}_{aspect_type.lower()}"
-                    # 解釈文辞書のキーは英語名のまま
-                    interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"{p1_jp} {aspect_glyph} {p2_jp} の解釈は準備中です。")
+                    
+                    # ASPECT_INTERPRETATIONSから解釈を取得、なければ動的に生成
+                    interp_text = ASPECT_INTERPRETATIONS.get(interp_key)
+                    if not interp_text:
+                        # 動的に解釈を生成
+                        dynamic_interp = get_dynamic_aspect_interpretation(p1, p2, aspect_type.lower())
+                        # ネイタル用に前書きを追加
+                        interp_text = f"あなたの{p1_jp}と{p2_jp}が{aspect_type.lower()}のアスペクトを形成しています。{dynamic_interp}"
 
                     # 主要アスペクトかどうかを判定
                     MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
@@ -251,7 +258,14 @@ def calculate():
                         planets_sorted_for_key = sorted([p1, p2]) # キー検索用にソート
                         # aspect_type を小文字に変換してキーを作成
                         interp_key = f"{planets_sorted_for_key[0]}_{planets_sorted_for_key[1]}_{aspect_type.lower()}"
-                        interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"T.{p1_jp} {aspect_glyph} N.{p2_jp} の解釈は準備中です。")
+                        
+                        # ASPECT_INTERPRETATIONSから解釈を取得、なければ動的に生成
+                        interp_text = ASPECT_INTERPRETATIONS.get(interp_key)
+                        if not interp_text:
+                            # 動的に解釈を生成
+                            dynamic_interp = get_dynamic_aspect_interpretation(p1, p2, aspect_type.lower())
+                            # トランジット用に前書きを追加
+                            interp_text = f"トランジットの{p1_jp}があなたのネイタルの{p2_jp}と{aspect_type.lower()}のアスペクトを形成しています。{dynamic_interp}"
                         
                         # 主要アスペクトかどうかを判定
                         MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
@@ -616,8 +630,14 @@ def calculate_synastry():
                 if p1 and p2 and aspect_type:
                     # シナストリーアスペクト解釈のキーを作成（順序考慮）
                     interp_key = f"{p1}_{p2}_{aspect_type.lower()}_synastry"
-                    # interp_text = get_interpretation_text(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）") # 古い呼び出しをコメントアウト
-                    interp_text = ASPECT_INTERPRETATIONS.get(interp_key, f"{p1_jp} - {p2_jp}（{aspect_type}）の解釈は準備中です。") # ASPECT_INTERPRETATIONS から直接取得
+                    
+                    # ASPECT_INTERPRETATIONSから解釈を取得、なければ動的に生成
+                    interp_text = ASPECT_INTERPRETATIONS.get(interp_key)
+                    if not interp_text:
+                        # 動的に解釈を生成
+                        dynamic_interp = get_dynamic_aspect_interpretation(p1, p2, aspect_type.lower())
+                        # シナストリー用に前書きを追加
+                        interp_text = f"Aさんの{p1_jp}とBさんの{p2_jp}が{aspect_type.lower()}のアスペクトを形成しています。{dynamic_interp}"
                     
                     # 主要アスペクトかどうかを判定
                     MAJOR_ASPECT_TYPES = ['conjunction', 'opposition', 'trine', 'square', 'sextile']
