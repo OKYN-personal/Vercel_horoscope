@@ -1096,4 +1096,8 @@ def life_events_result():
 @bp.route('/pwa_test')
 def pwa_test():
     """PWA機能テスト用ページ"""
-    return render_template('pwa_test.html') 
+    return render_template('pwa_test.html')
+
+@bp.route('/help')
+def help():
+    return render_template('help.html') 

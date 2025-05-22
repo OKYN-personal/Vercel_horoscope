@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}ヘルプ - ホロスコープ・サビアンシンボル{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">ヘルプ</h2>
+    
+    <div class="accordion" id="helpAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                    基本的な使い方
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <h5>ホロスコープの計算方法</h5>
+                    <ol>
+                        <li>トップページから「ホロスコープ」を選択します</li>
+                        <li>生年月日、出生時刻、出生地を入力します</li>
+                        <li>必要に応じて緯度・経度を手動で入力することもできます</li>
+                        <li>「計算する」ボタンをクリックするとホロスコープが表示されます</li>
+                    </ol>
+                    
+                    <h5>結果の見方</h5>
+                    <p>ホロスコープの結果は以下のセクションに分かれています：</p>
+                    <ul>
+                        <li><strong>ホロスコープチャート</strong>: 惑星の配置を視覚的に表示</li>
+                        <li><strong>天体位置</strong>: 各惑星のサイン、ハウス、度数などの詳細情報</li>
+                        <li><strong>サビアンシンボル</strong>: 惑星の度数に対応するサビアンシンボルと解釈</li>
+                        <li><strong>アスペクト表</strong>: 惑星間の関係を示すアスペクトのグリッド</li>
+                        <li><strong>解釈</strong>: 惑星のサインとハウスの解釈、およびアスペクトの解釈</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    相性占い
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <h5>相性占い（シナストリー）の使い方</h5>
+                    <ol>
+                        <li>ナビゲーションから「相性占い」を選択します</li>
+                        <li>二人分の生年月日、出生時刻、出生地を入力します</li>
+                        <li>「計算する」ボタンをクリックすると相性チャートが表示されます</li>
+                    </ol>
+                    
+                    <h5>相性結果の見方</h5>
+                    <p>相性占いの結果には以下の情報が含まれます：</p>
+                    <ul>
+                        <li><strong>シナストリーチャート</strong>: 二人の惑星配置を重ねたチャート</li>
+                        <li><strong>アスペクト表</strong>: 二人の惑星間のアスペクト関係</li>
+                        <li><strong>相性の解釈</strong>: 重要なアスペクトと相性に関する解釈</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                    月のノード計算
+                </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <h5>月のノード計算の使い方</h5>
+                    <ol>
+                        <li>ナビゲーションから「月のノード計算」を選択します</li>
+                        <li>生年月日、出生時刻、出生地を入力します</li>
+                        <li>「計算する」ボタンをクリックすると結果が表示されます</li>
+                    </ol>
+                    
+                    <h5>月のノードとは</h5>
+                    <p>月のノードは、月の軌道と太陽の軌道（黄道）が交差する点です。</p>
+                    <ul>
+                        <li><strong>ノースノード（ドラゴンヘッド）</strong>: 魂の成長に向かう方向性を示します</li>
+                        <li><strong>サウスノード（ドラゴンテイル）</strong>: 過去生からの持ち越しとなる課題を示します</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                    ライフイベント予測
+                </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <h5>ライフイベント予測の使い方</h5>
+                    <ol>
+                        <li>ナビゲーションから「ライフイベント予測」を選択します</li>
+                        <li>生年月日、出生時刻、出生地を入力します</li>
+                        <li>予測したい期間（開始年と終了年）を指定します</li>
+                        <li>「計算する」ボタンをクリックすると結果が表示されます</li>
+                    </ol>
+                    
+                    <h5>ライフイベント予測の見方</h5>
+                    <p>結果には以下の情報が含まれます：</p>
+                    <ul>
+                        <li><strong>主要トランジット</strong>: 外惑星の動きによる重要なライフイベント</li>
+                        <li><strong>プログレッション</strong>: セカンダリープログレッションによる内面の変化</li>
+                        <li><strong>ソーラーアーク</strong>: ソーラーアークによる長期的な発達傾向</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFive">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                    用語解説
+                </button>
+            </h2>
+            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">ホロスコープ</dt>
+                        <dd class="col-sm-9">特定の時間と場所における天体の配置を図示したもの。生まれた瞬間の天体配置を表す出生図（ネイタルチャート）が基本となります。</dd>
+                        
+                        <dt class="col-sm-3">サビアンシンボル</dt>
+                        <dd class="col-sm-9">黄道十二宮の各1度ごとに与えられた象徴的なイメージ。合計360のシンボルがあります。</dd>
+                        
+                        <dt class="col-sm-3">アスペクト</dt>
+                        <dd class="col-sm-9">二つの天体間の角度関係。主要なアスペクトには合（0°）、対向（180°）、トライン（120°）、スクエア（90°）、セクスタイル（60°）などがあります。</dd>
+                        
+                        <dt class="col-sm-3">ハウス</dt>
+                        <dd class="col-sm-9">ホロスコープを12の領域に分割したもの。各ハウスは人生の異なる分野を表します。</dd>
+                        
+                        <dt class="col-sm-3">シナストリー</dt>
+                        <dd class="col-sm-9">二人のホロスコープを比較することで相性を見る方法。</dd>
+                        
+                        <dt class="col-sm-3">トランジット</dt>
+                        <dd class="col-sm-9">現在または特定の時点での天体の動きが、出生図の天体とどのような関係を持つかを示すもの。</dd>
+                        
+                        <dt class="col-sm-3">プログレッション</dt>
+                        <dd class="col-sm-9">生まれてから1日を1年に対応させて計算する予測技法（セカンダリープログレッション）。</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingSix">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+                    よくある質問
+                </button>
+            </h2>
+            <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <div class="mb-4">
+                        <h5>出生時間がわからない場合はどうすればいいですか？</h5>
+                        <p>出生時間がわからない場合は、正午（12:00）を入力することが一般的です。ただし、この場合はハウスの情報やアセンダントの情報は正確ではないことにご注意ください。</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>出生地の緯度経度を手動で入力する必要がありますか？</h5>
+                        <p>いいえ、出生地の名前を入力するだけで自動的に緯度経度を検索します。ただし、小さな町や村の場合は見つからないことがあるため、その場合は手動入力が必要になることがあります。</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>計算結果をPDFで保存できますか？</h5>
+                        <p>はい、各結果ページには「PDFで保存」ボタンがあり、計算結果をPDF形式で保存することができます。</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>アプリをオフラインで使用できますか？</h5>
+                        <p>はい、このアプリはPWA（Progressive Web App）として実装されているため、一度読み込んだ後はオフラインでも基本機能を使用できます。ただし、新しい地名の検索など一部の機能はオンライン接続が必要です。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ヘルプページが読み込まれたときにアクティブなナビゲーションリンクを設定
+        const helpNavLink = document.querySelector('a.nav-link[href="{{ url_for("main.help") }}"]');
+        if (helpNavLink) {
+            helpNavLink.classList.add('active');
+        }
+    });
+</script>
+{% endblock %} 

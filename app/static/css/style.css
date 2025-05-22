@@ -72,6 +72,35 @@ body {
     font-weight: normal;
 }
 
+/* アスペクトグリッドスタイル */
+.aspect-grid-table {
+    width: auto;
+    margin: 0 auto 2rem;
+    border-collapse: collapse;
+    font-size: 1.1rem;
+}
+
+.aspect-grid-table th,
+.aspect-grid-table td {
+    width: 32px;
+    height: 32px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px;
+    border: 1px solid #eee;
+}
+
+.aspect-grid-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.aspect-grid-table td.aspect-conj { background-color: #ffeeee; }
+.aspect-grid-table td.aspect-trin { background-color: #eeffee; }
+.aspect-grid-table td.aspect-squa { background-color: #ffdddd; }
+.aspect-grid-table td.aspect-oppo { background-color: #ffdddd; }
+.aspect-grid-table td.aspect-sext { background-color: #eeffee; }
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     /* ナビゲーション */
@@ -114,6 +143,21 @@ body {
     /* 解釈コンテナ */
     .interpretation-item {
         padding: 10px;
+    }
+
+    /* アスペクトグリッド */
+    .aspect-grid-table {
+        max-width: 100%;
+        overflow-x: auto;
+        display: block;
+        font-size: 0.9rem;
+    }
+    
+    .aspect-grid-table th,
+    .aspect-grid-table td {
+        width: 28px;
+        height: 28px;
+        padding: 2px;
     }
 }
 

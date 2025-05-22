@@ -317,10 +317,10 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
         list: アスペクト情報のリスト [{planet1, planet2, aspect_type, orb, aspect_glyph, planet1_glyph, planet2_glyph, planet1_jp, planet2_jp}, ...]
     """
     if orb_degrees is None:
-        # デフォルトオーブ (適宜調整)
+        # オーブを厳しくして数を減らす（値を小さくする）
         orb_degrees = {
-            'Conjunction': 10, 'Opposition': 10, 'Trine': 8, 'Square': 8,
-            'Sextile': 6, 'Inconjunct': 2, 'Semisextile': 2, 'Quintile': 2, 'BiQuintile': 2
+            'Conjunction': 8, 'Opposition': 8, 'Trine': 6, 'Square': 6,
+            'Sextile': 4, 'Inconjunct': 1, 'Semisextile': 1, 'Quintile': 1, 'BiQuintile': 1
         }
 
     aspects = []
@@ -332,6 +332,12 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
             for j in range(i + 1, len(planets1)):
                 p1_name = planets1[i]
                 p2_name = planets1[j]
+                
+                # 主要天体のみを対象とする場合
+                main_planets = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Asc', 'MC']
+                if p1_name not in main_planets or p2_name not in main_planets:
+                    continue
+                
                 p1_lon = positions1[p1_name]['longitude']
                 p2_lon = positions1[p2_name]['longitude']
 
@@ -342,6 +348,8 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
                     angle_diff = min(diff, 360 - diff) # 0-180度の角度差
 
                     if abs(angle_diff - aspect_angle) <= orb:
+                        # 主要アスペクトのみを含める（マイナーアスペクトを除外）
+                        is_major = aspect_name in ['Conjunction', 'Opposition', 'Trine', 'Square', 'Sextile']
                         aspects.append({
                             'planet1': p1_name,
                             'planet2': p2_name,
@@ -351,18 +359,24 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
                             'planet1_glyph': get_planet_glyph(p1_name),
                             'planet2_glyph': get_planet_glyph(p2_name),
                             'planet1_jp': PLANET_NAMES_JP.get(p1_name, p1_name),
-                            'planet2_jp': PLANET_NAMES_JP.get(p2_name, p2_name)
+                            'planet2_jp': PLANET_NAMES_JP.get(p2_name, p2_name),
+                            'is_major': is_major
                         })
                         break # 最初に見つかった主要アスペクトでループを抜ける場合（複数許容しない場合）
     else: # トランジット-ネイタル間のアスペクト計算
         planets2 = list(positions2.keys())
         for p1_name in planets1:
-             # トランジット側がASC/MCの場合はスキップ（通常考慮しない）
+            # トランジット側がASC/MCの場合はスキップ（通常考慮しない）
             if p1_name in ['Asc', 'MC']: continue
             for p2_name in planets2:
                 # ネイタル側がASC/MCの場合はハウスとして考慮するためスキップしないことが多いが、
                 # ここでは単純な天体間アスペクトのみを計算
                 # if p2_name in ['Asc', 'MC']: continue # 必要ならコメント解除
+
+                # 主要天体のみを対象とする場合
+                main_planets = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Asc', 'MC']
+                if p1_name not in main_planets or p2_name not in main_planets:
+                    continue
 
                 p1_lon = positions1[p1_name]['longitude']
                 p2_lon = positions2[p2_name]['longitude']
@@ -373,6 +387,8 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
                     angle_diff = min(diff, 360 - diff)
 
                     if abs(angle_diff - aspect_angle) <= orb:
+                        # 主要アスペクトのみを含める
+                        is_major = aspect_name in ['Conjunction', 'Opposition', 'Trine', 'Square', 'Sextile']
                         aspects.append({
                             'planet1': p1_name, # Transit Planet
                             'planet2': p2_name, # Natal Planet
@@ -382,7 +398,8 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
                             'planet1_glyph': get_planet_glyph(p1_name),
                             'planet2_glyph': get_planet_glyph(p2_name),
                             'planet1_jp': PLANET_NAMES_JP.get(p1_name, p1_name), # Transit 日本語名
-                            'planet2_jp': PLANET_NAMES_JP.get(p2_name, p2_name)  # Natal 日本語名
+                            'planet2_jp': PLANET_NAMES_JP.get(p2_name, p2_name),  # Natal 日本語名
+                            'is_major': is_major
                         })
                         break
 
@@ -391,27 +408,36 @@ def calculate_aspects(positions1, positions2=None, orb_degrees=None):
 
     return aspects
 
-# アスペクトグリッド生成関数 (必要であれば追加)
+# アスペクトグリッド生成関数を修正
 def generate_aspect_grid(aspects, planets_order=None):
     if planets_order is None:
-        planets_order = list(PLANETS.keys()) + list(POINTS.keys())
+        # 表示する天体を限定する
+        planets_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Asc', 'MC']
+    
+    # 指定した天体のみを使用
+    planets_to_use = [p for p in planets_order if p in (list(PLANETS.keys()) + list(POINTS.keys()))]
 
-    grid = {p1: {p2: "" for p2 in planets_order} for p1 in planets_order}
+    grid = {p1: {p2: "" for p2 in planets_to_use} for p1 in planets_to_use}
 
     for aspect in aspects:
         p1, p2 = aspect['planet1'], aspect['planet2']
+        
+        # グリッドに含まれる天体のみ処理
+        if p1 not in planets_to_use or p2 not in planets_to_use:
+            continue
+            
         aspect_glyph = aspect['aspect_glyph'] # aspect データからグリフを取得
         if p1 in grid and p2 in grid[p1]:
-             grid[p1][p2] = aspect_glyph
+            grid[p1][p2] = aspect_glyph
         if p2 in grid and p1 in grid[p2]: # 対称性を考慮
             grid[p2][p1] = aspect_glyph
 
     # 対角線にXを入れるなど、必要なら調整
-    for p in planets_order:
+    for p in planets_to_use:
         if p in grid and p in grid[p]:
             grid[p][p] = 'X'
 
-    return {'planets': planets_order, 'grid': grid}
+    return {'planets': planets_to_use, 'grid': grid}
 
 def get_planet_details(longitude, planet_name):
     """黄経と惑星名から、サイン、度数、記号などの詳細情報を取得するヘルパー関数"""

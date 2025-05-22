@@ -86,6 +86,48 @@
 {% block scripts %}
 {{ super() }} 
 <script>
+// Google Maps APIのコールバック関数をグローバルスコープに定義
+function initAutocompleteNodes() {
+    const birthPlaceInputNodes = document.getElementById('birthPlace');
+    const latInputNodes = document.getElementById('latitude');
+    const lngInputNodes = document.getElementById('longitude');
+    const feedbackElNodes = document.getElementById('locationFeedbackNodes');
+    const coordinatesFieldsNodes = document.getElementById('coordinatesFieldsNodes');
+    const toggleBtnNodes = document.getElementById('toggleCoordinatesNodes');
+
+    if (typeof google !== 'undefined' && google.maps && google.maps.places && birthPlaceInputNodes) {
+        const autocomplete = new google.maps.places.Autocomplete(birthPlaceInputNodes, {
+            types: ['(cities)'],
+            componentRestrictions: {country: 'jp'} // 日本に限定
+        });
+        autocomplete.addListener('place_changed', function () {
+            const place = autocomplete.getPlace();
+            if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                if(latInputNodes) latInputNodes.value = lat.toFixed(6);
+                if(lngInputNodes) lngInputNodes.value = lng.toFixed(6);
+                if(feedbackElNodes) {
+                     feedbackElNodes.innerHTML = `
+                        <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
+                        <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
+                        <span>${place.formatted_address || place.name}</span>
+                    `;
+                }
+                if (coordinatesFieldsNodes && toggleBtnNodes) {
+                    coordinatesFieldsNodes.style.display = 'none';
+                    toggleBtnNodes.textContent = '緯度経度を手動入力する';
+                }
+            } else {
+                if(feedbackElNodes) feedbackElNodes.textContent = '場所のジオメトリが見つかりません。';
+            }
+        });
+    } else {
+        console.warn("Google Maps APIが完全にロードされていません。オートコンプリートは無効です。");
+        if(feedbackElNodes) feedbackElNodes.textContent = '地図サービスに接続できません。地名検索は利用できません。';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const toggleBtnNodes = document.getElementById('toggleCoordinatesNodes');
     const coordinatesFieldsNodes = document.getElementById('coordinatesFieldsNodes');
@@ -163,59 +205,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (latInputNodes) latInputNodes.addEventListener('input', updateCoordinateFeedbackNodes);
     if (lngInputNodes) lngInputNodes.addEventListener('input', updateCoordinateFeedbackNodes);
 
-    {% if google_maps_api_key %}
-    function initAutocompleteNodes() {
-        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-            const autocomplete = new google.maps.places.Autocomplete(birthPlaceInputNodes, {
-                types: ['(cities)']
-            });
-            autocomplete.addListener('place_changed', function () {
-                const place = autocomplete.getPlace();
-                if (place.geometry && place.geometry.location) {
-                    const lat = place.geometry.location.lat();
-                    const lng = place.geometry.location.lng();
-                    if(latInputNodes) latInputNodes.value = lat.toFixed(6);
-                    if(lngInputNodes) lngInputNodes.value = lng.toFixed(6);
-                    if(feedbackElNodes) {
-                         feedbackElNodes.innerHTML = `
-                            <span class="coords-badge">緯度: ${lat.toFixed(6)}</span>
-                            <span class="coords-badge">経度: ${lng.toFixed(6)}</span>
-                            <span>${place.formatted_address || place.name}</span>
-                        `;
-                    }
-                    if (coordinatesFieldsNodes && toggleBtnNodes) {
-                        coordinatesFieldsNodes.style.display = 'none';
-                        toggleBtnNodes.textContent = '緯度経度を手動入力する';
-                    }
-                } else {
-                    if(feedbackElNodes) feedbackElNodes.textContent = '場所のジオメトリが見つかりません。';
-                }
-            });
-        } else {
-            console.warn("Google Maps APIが完全にロードされていません。オートコンプリートは無効です。");
-            if(feedbackElNodes) feedbackElNodes.textContent = '地図サービスに接続できません。地名検索は利用できません。';
-        }
-    }
-    if (window.google && window.google.maps) {
-        initAutocompleteNodes();
-    } else {
-        console.log("Google Maps APIの読み込みを待機しています (lunar_nodes_form.html)");
-        // Google Maps APIの読み込みを待つイベントリスナー
-        window.addEventListener('load', function() {
-            if (window.google && window.google.maps) {
-                initAutocompleteNodes();
-            } else {
-                console.error("Google Maps APIの読み込みに失敗しました");
-            }
-        });
-    }
-    {% else %}
-    if(birthPlaceInputNodes && feedbackElNodes) {
-        feedbackElNodes.textContent = '地名検索機能は利用できません (APIキー未設定)';
-        birthPlaceInputNodes.placeholder = "緯度経度を手動で入力してください";
-    }
-    {% endif %}
-    
     const nodeForm = document.getElementById('nodeForm');
     const errorDisplayNodes = document.getElementById('errorDisplayNodes');
 
@@ -280,4 +269,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+{% if google_maps_api_key %}
+<!-- Google Maps APIの読み込み -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initAutocompleteNodes&language=ja" async defer></script>
+{% endif %}
 {% endblock scripts %} 
