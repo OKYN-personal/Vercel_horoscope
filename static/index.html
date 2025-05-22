@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ホロスコープ計算</title>
+    <meta name="description" content="誕生日と時間から占星術ホロスコープを計算するPWAアプリ">
+    <meta name="theme-color" content="#3498db">
+    
+    <!-- PWA関連 -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    
+    <!-- スタイルシート -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ホロスコープ計算ツール</h1>
+            <button id="helpBtn" aria-label="ヘルプ">?</button>
+            <div id="connection-status"></div>
+        </header>
+        
+        <main>
+            <form id="horoscopeForm">
+                <div class="form-group">
+                    <label for="birthDate">生年月日:</label>
+                    <input type="date" id="birthDate" name="birthDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="birthTime">出生時間:</label>
+                    <input type="time" id="birthTime" name="birthTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="latitude">緯度:</label>
+                    <input type="number" id="latitude" name="latitude" step="0.000001" required placeholder="例: 35.6895">
+                </div>
+                
+                <div class="form-group">
+                    <label for="longitude">経度:</label>
+                    <input type="number" id="longitude" name="longitude" step="0.000001" required placeholder="例: 139.6917">
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="geolocateBtn">現在地を取得</button>
+                    <button type="submit" id="calculateBtn">計算</button>
+                </div>
+            </form>
+            
+            <div id="resultContainer" class="hidden">
+                <h2>計算結果</h2>
+                <div id="result"></div>
+            </div>
+            
+            <div id="loadingIndicator" class="hidden">
+                <div class="spinner"></div>
+                <p>計算中...</p>
+            </div>
+            
+            <div id="offlineMessage" class="hidden">
+                <p>現在オフラインモードです。インターネット接続がない場合、以前の計算結果のみ表示できます。</p>
+            </div>
+            
+            <div id="installPrompt" class="hidden">
+                <p>このアプリをインストールして、オフラインでも使用できます。</p>
+                <button id="installBtn">インストール</button>
+            </div>
+        </main>
+        
+        <!-- ヘルプモーダル -->
+        <div id="helpModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>ヘルプ</h2>
+                    <button id="closeHelpBtn" class="modal-close" aria-label="閉じる">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="help-sidebar">
+                        <ul class="help-topics">
+                            <li><a href="#" class="help-topic-link" data-topic="basics">基本的な使い方</a></li>
+                            <li><a href="#" class="help-topic-link" data-topic="planets">惑星の意味</a></li>
+                            <li><a href="#" class="help-topic-link" data-topic="signs">星座の意味</a></li>
+                            <li><a href="#" class="help-topic-link" data-topic="houses">ハウスの意味</a></li>
+                            <li><a href="#" class="help-topic-link" data-topic="aspects">アスペクト</a></li>
+                            <li><a href="#" class="help-topic-link" data-topic="offline">オフライン機能</a></li>
+                        </ul>
+                    </div>
+                    <div id="helpContent" class="help-content">
+                        <!-- ヘルプコンテンツはJSで動的に挿入 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2025 ホロスコープ計算ツール</p>
+            <div class="footer-links">
+                <a href="#" class="footer-link" id="aboutLink">About</a>
+                <a href="#" class="footer-link" id="privacyLink">プライバシー</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- サービスワーカー登録 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/js/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker登録成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker登録失敗:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- メインスクリプト -->
+    <script src="/static/js/app.js"></script>
+    <!-- ヘルプスクリプト -->
+    <script src="/static/js/help.js"></script>
+</body>
+</html> 

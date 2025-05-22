@@ -1,0 +1,437 @@
+/* ベース設定 */
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2980b9;
+  --accent-color: #e74c3c;
+  --text-color: #333;
+  --light-text: #666;
+  --background-color: #f8f9fa;
+  --card-background: #fff;
+  --border-color: #dee2e6;
+  --success-color: #2ecc71;
+  --warning-color: #f39c12;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* コンテナ */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ヘッダー */
+header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  flex-grow: 1;
+  text-align: center;
+}
+
+/* 接続状態表示 */
+#connection-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.online {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.offline {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+/* メインコンテンツ */
+main {
+  padding: 20px 0;
+  flex: 1;
+}
+
+/* フォーム */
+form {
+  background-color: var(--card-background);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: var(--secondary-color);
+}
+
+#geolocateBtn {
+  background-color: var(--light-text);
+}
+
+#geolocateBtn:hover {
+  background-color: #555;
+}
+
+/* 結果表示 */
+#resultContainer {
+  background-color: var(--card-background);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+#resultContainer h2 {
+  margin-bottom: 15px;
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 5px;
+}
+
+/* ローディングインジケーター */
+#loadingIndicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  text-align: center;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid var(--primary-color);
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* メッセージ */
+#offlineMessage, #installPrompt {
+  background-color: var(--warning-color);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#installPrompt {
+  background-color: var(--success-color);
+}
+
+#installPrompt button {
+  background-color: white;
+  color: var(--success-color);
+}
+
+#installPrompt button:hover {
+  background-color: #f5f5f5;
+}
+
+/* ヘルプボタン */
+#helpBtn {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-left: 10px;
+  padding: 0;
+  line-height: 1;
+}
+
+#helpBtn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ヘルプモーダル */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--card-background);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-body {
+  display: flex;
+  height: 70vh;
+  overflow: hidden;
+}
+
+.help-sidebar {
+  width: 200px;
+  background-color: #f0f0f0;
+  padding: 15px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+}
+
+.help-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.help-topics {
+  list-style: none;
+}
+
+.help-topic-link {
+  display: block;
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--text-color);
+  transition: background-color 0.2s;
+}
+
+.help-topic-link:hover,
+.help-topic-link.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.help-content h3 {
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.help-content p {
+  margin-bottom: 15px;
+}
+
+.help-content ul,
+.help-content ol {
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.help-content li {
+  margin-bottom: 8px;
+}
+
+/* フッター */
+footer {
+  background-color: var(--primary-color);
+  color: white;
+  text-align: center;
+  padding: 15px;
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+footer p {
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+}
+
+.footer-link {
+  color: white;
+  margin-left: 15px;
+  text-decoration: none;
+  transition: opacity 0.3s;
+}
+
+.footer-link:hover {
+  opacity: 0.8;
+}
+
+/* ユーティリティクラス */
+.hidden {
+  display: none !important;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  button {
+    width: 100%;
+  }
+  
+  .modal-body {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .help-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    max-height: 150px;
+  }
+  
+  .help-content {
+    max-height: 50vh;
+  }
+}
+
+@media (max-width: 480px) {
+  form, #resultContainer {
+    padding: 15px;
+  }
+  
+  header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .modal-content {
+    width: 95%;
+  }
+} 

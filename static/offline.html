@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オフライン - ホロスコープ計算</title>
+    <meta name="theme-color" content="#3498db">
+    
+    <style>
+        /* ベース設定 */
+        :root {
+            --primary-color: #3498db;
+            --text-color: #333;
+            --background-color: #f8f9fa;
+            --card-background: #fff;
+            --border-color: #dee2e6;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* コンテナ */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ヘッダー */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        /* メインコンテンツ */
+        main {
+            padding: 20px 0;
+            flex: 1;
+        }
+
+        /* オフラインメッセージ */
+        .offline-card {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .offline-icon {
+            font-size: 5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .offline-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .offline-text {
+            margin-bottom: 20px;
+        }
+
+        .button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        /* 保存済み結果 */
+        .saved-results {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin: 20px 0;
+            display: none;
+        }
+
+        .saved-results h2 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+        }
+
+        .result-list {
+            list-style: none;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        /* フッター */
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 15px;
+            margin-top: auto;
+        }
+
+        footer p {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ホロスコープ計算ツール</h1>
+        </header>
+        
+        <main>
+            <div class="offline-card">
+                <div class="offline-icon">📡</div>
+                <h2 class="offline-title">インターネット接続がありません</h2>
+                <p class="offline-text">現在、オフラインモードです。インターネット接続を確認してください。</p>
+                <a href="/" class="button">再試行</a>
+            </div>
+            
+            <div id="savedResults" class="saved-results">
+                <h2>保存済みの結果</h2>
+                <p>以前に計算した結果があります。</p>
+                <ul id="resultList" class="result-list">
+                    <!-- 保存された結果がここに表示されます -->
+                </ul>
+            </div>
+        </main>
+        
+        <footer>
+            <p>© 2025 ホロスコープ計算ツール</p>
+        </footer>
+    </div>
+
+    <script>
+        // 保存された結果を表示
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const savedResults = JSON.parse(localStorage.getItem('horoscopeResults') || '[]');
+                const savedResultsDiv = document.getElementById('savedResults');
+                const resultList = document.getElementById('resultList');
+                
+                if (savedResults.length > 0) {
+                    savedResultsDiv.style.display = 'block';
+                    
+                    savedResults.forEach(result => {
+                        const li = document.createElement('li');
+                        li.className = 'result-item';
+                        
+                        const date = new Date(result.timestamp);
+                        const formattedDate = date.toLocaleDateString('ja-JP') + ' ' + 
+                                             date.toLocaleTimeString('ja-JP');
+                        
+                        li.innerHTML = `
+                            <strong>計算日時:</strong> ${formattedDate}<br>
+                            <strong>生年月日:</strong> ${result.input.birthDate}<br>
+                            <strong>太陽サイン:</strong> ${result.result.sun_sign}
+                        `;
+                        
+                        resultList.appendChild(li);
+                    });
+                }
+            } catch (error) {
+                console.error('保存済み結果の読み込みに失敗しました:', error);
+            }
+        });
+    </script>
+</body>
+</html> 

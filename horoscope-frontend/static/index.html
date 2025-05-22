@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ホロスコープ計算</title>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- PWA対応のためのメタタグとリンク -->
+    <meta name="theme-color" content="#3498db">
+    <meta name="description" content="誕生日と時間から占星術ホロスコープを計算するアプリ">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div class="container">
+        <h1>ホロスコープ計算ツール</h1>
+        
+        <button id="installApp" class="install-button hidden">アプリをインストール</button>
+        
+        <form id="horoscopeForm">
+            <div class="form-group">
+                <label for="birthDate">生年月日:</label>
+                <input type="date" id="birthDate" name="birthDate" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="birthTime">出生時間:</label>
+                <input type="time" id="birthTime" name="birthTime" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="latitude">緯度:</label>
+                <input type="number" id="latitude" name="latitude" step="0.000001" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="longitude">経度:</label>
+                <input type="number" id="longitude" name="longitude" step="0.000001" required>
+            </div>
+            
+            <button type="submit" id="calculateBtn">計算</button>
+        </form>
+        
+        <div id="resultContainer" class="hidden">
+            <h2>計算結果</h2>
+            <div id="result"></div>
+        </div>
+        
+        <div id="loadingIndicator" class="hidden">
+            <p>計算中...</p>
+        </div>
+        
+        <div id="offlineIndicator" class="hidden">
+            <p>⚠️ オフラインモード - インターネット接続がありません</p>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/register-sw.js"></script>
+</body>
+</html> 
